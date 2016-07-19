@@ -19,6 +19,8 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 
+from qrisk.utils import nanmean
+
 
 APPROX_BDAYS_PER_MONTH = 21
 APPROX_BDAYS_PER_YEAR = 252
@@ -448,7 +450,7 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
     -------
     depends on input type
     series ==> float
-    DataFrame ==> np.array
+    DataFrame ==> pd.Series
 
         Annualized Sortino ratio.
 
@@ -462,10 +464,7 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
     if len(returns) < 2:
         return np.nan
 
-    if len(returns) < 2:
-        return np.nan
-
-    mu = np.nanmean(returns - required_return, axis=0)
+    mu = nanmean(returns - required_return, axis=0)
     sortino = mu / downside_risk(returns, required_return)
     if len(returns.shape) == 2:
         sortino = pd.Series(sortino, index=returns.columns)
@@ -500,7 +499,7 @@ def downside_risk(returns, required_return=0, period=DAILY,
     -------
     depends on input type
     series ==> float
-    DataFrame ==> np.array
+    DataFrame ==> pd.Series
 
         Annualized downside deviation
 
@@ -515,7 +514,7 @@ def downside_risk(returns, required_return=0, period=DAILY,
     mask = downside_diff > 0
     downside_diff[mask] = 0.0
     squares = np.square(downside_diff)
-    mean_squares = np.nanmean(squares, axis=0)
+    mean_squares = nanmean(squares, axis=0)
     dside_risk = np.sqrt(mean_squares) * np.sqrt(ann_factor)
     if len(returns.shape) == 2:
         dside_risk = pd.Series(dside_risk, index=returns.columns)
