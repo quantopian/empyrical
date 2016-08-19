@@ -72,12 +72,12 @@ class TestStats(TestCase):
     flat_line_0 = pd.Series(
         np.linspace(0, 0, num=1000),
         index=pd.date_range('2000-1-30', periods=1000, freq='D')
-        )
+    )
     # Flat line
     flat_line_1 = pd.Series(
         np.linspace(0.01, 0.01, num=1000),
         index=pd.date_range('2000-1-30', periods=1000, freq='D')
-        )
+    )
 
     # Positive line
     pos_line = pd.Series(
@@ -90,6 +90,14 @@ class TestStats(TestCase):
         np.linspace(0, -1, num=1000),
         index=pd.date_range('2000-1-30', periods=1000, freq='D')
     )
+
+    # Sparse noise, same as noise but with np.nan sprinkled in
+    replace_nan = random.sample(noise.index.tolist(), random.randint(1, 10))
+    sparse_noise = noise.replace(replace_nan, np.nan)
+
+    # Sparse flat line at 0.01
+    replace_nan = random.sample(noise.index.tolist(), random.randint(1, 10))
+    sparse_flat_line_1 = flat_line_1.replace(replace_nan, np.nan)
 
     one = [-0.00171614, 0.01322056, 0.03063862, -0.01422057, -0.00489779,
            0.01268925, -0.03357711, 0.01797036]
@@ -763,6 +771,16 @@ class TestStats(TestCase):
         # Beta measures the volatility of returns against benchmark returns.
         # Beta increases proportionally to correlation.
         assert beta_less < beta_more
+
+    # When faced with data containing np.nan, do not return np.nan. Calculate
+    # alpha and beta using dates containing both.
+    @parameterized.expand([
+        (sparse_noise, sparse_flat_line_1),
+    ])
+    def test_alpha_beta_with_nan_inputs(self, returns, benchmark):
+        alpha, beta = empyrical.alpha_beta(returns, benchmark)
+        self.assertNotEqual(alpha, np.nan)
+        self.assertNotEqual(beta, np.nan)
 
     @parameterized.expand([
         (empty_returns, simple_benchmark, np.nan),
