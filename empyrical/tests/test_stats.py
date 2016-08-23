@@ -85,6 +85,12 @@ class TestStats(TestCase):
         index=pd.date_range('2000-1-30', periods=1000, freq='D')
     )
 
+    # Intercept line
+    intercept_line = pd.Series(
+        np.linspace(-1, 1, num=1000),
+        index=pd.date_range('2000-1-30', periods=1000, freq='D')
+    )
+
     # Negative line
     neg_line = pd.Series(
         np.linspace(0, -1, num=1000),
@@ -414,9 +420,10 @@ class TestStats(TestCase):
     ])
     def test_downside_risk(self, returns, required_return, period, expected):
         downside_risk = empyrical.downside_risk(
-                        returns,
-                        required_return=required_return,
-                        period=period)
+            returns,
+            required_return=required_return,
+            period=period
+            )
         if isinstance(downside_risk, float):
             assert_almost_equal(
                 downside_risk,
@@ -501,9 +508,10 @@ class TestStats(TestCase):
     ])
     def test_sortino(self, returns, required_return, period, expected):
         sortino_ratio = empyrical.sortino_ratio(
-                        returns,
-                        required_return=required_return,
-                        period=period)
+            returns,
+            required_return=required_return,
+            period=period
+            )
         if isinstance(sortino_ratio, float):
             assert_almost_equal(
                 sortino_ratio,
@@ -896,3 +904,29 @@ class TestStats(TestCase):
             cagr,
             noisy_cagr_2,
             1)
+
+    @parameterized.expand([
+        (empty_returns, np.nan),
+        (one_return, np.nan),
+        (flat_line_1, np.nan),
+        (pos_line, 54.799662435119096),
+        (neg_line, np.nan),
+        (intercept_line, 54.717565516458279),
+    ])
+    def test_sqn(self, trade_returns, expected):
+        assert_almost_equal(
+            empyrical.sqn(trade_returns),
+            expected,
+            DECIMAL_PLACES
+            )
+
+    @parameterized.expand([
+        (50 * pos_line**2 - 10, noise_uniform * 2000),
+        (noise_uniform * 2000, noise_uniform * 2000)
+    ])
+    def test_sqn_noise(self, trade_returns, noise):
+        # Adding noise the signal will generally decrease SQN
+        noised_returns = trade_returns + noise
+        sqn1 = empyrical.sqn(trade_returns)
+        sqn2 = empyrical.sqn(noised_returns)
+        assert(sqn1 >= sqn2)

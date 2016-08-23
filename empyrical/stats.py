@@ -770,7 +770,7 @@ def cagr(returns, period=DAILY, annualization=None):
     return ending_value ** (1. / no_years) - 1
 
 
-def SQN(trade_returns):
+def sqn(trade_returns):
     """Determines the SystemQualityNumber of trades as defined by Van K. Tharp.
 
     Parameters
@@ -784,20 +784,23 @@ def SQN(trade_returns):
         SystemQualityNumber
 
     """
-
-    n_trades = len(trade_returns)
+    n_trades = len(trade_returns.values)
 
     if n_trades < 30:
         return np.nan
 
     pos = trade_returns[trade_returns > 0]
-    std = pos.std()
-    avg = pos.mean()
+
+    if len(pos) < 3:
+        return np.nan
+
+    std = np.nanstd(pos, ddof=1)
+    avg = np.nanmean(pos)
 
     if std == 0:
         return np.nan
 
-    return np.sqrt(n_trades)*avg/std
+    return np.sqrt(n_trades) * avg / std
 
 
 SIMPLE_STAT_FUNCS = [
@@ -822,5 +825,5 @@ FACTOR_STAT_FUNCS = [
 ]
 
 TRADE_STAT_FUNCS = [
-    SQN,
+    sqn,
 ]
