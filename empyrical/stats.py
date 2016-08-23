@@ -770,6 +770,36 @@ def cagr(returns, period=DAILY, annualization=None):
     return ending_value ** (1. / no_years) - 1
 
 
+def SQN(trade_returns):
+    """Determines the SystemQualityNumber of trades as defined by Van K. Tharp.
+
+    Parameters
+    ----------
+    trade_returns : pd.Series
+        A series of transaction gains/losses.
+
+    Returns
+    -------
+    float
+        SystemQualityNumber
+
+    """
+
+    n_trades = len(trade_returns)
+
+    if n_trades < 30:
+        return np.nan
+
+    pos = trade_returns[trade_returns > 0]
+    std = pos.std()
+    avg = pos.mean()
+
+    if std == 0:
+        return np.nan
+
+    return np.sqrt(n_trades)*avg/std
+
+
 SIMPLE_STAT_FUNCS = [
     annual_return,
     annual_volatility,
@@ -789,4 +819,8 @@ FACTOR_STAT_FUNCS = [
     information_ratio,
     alpha,
     beta,
+]
+
+TRADE_STAT_FUNCS = [
+    SQN,
 ]
