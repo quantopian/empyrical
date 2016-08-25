@@ -665,10 +665,7 @@ def beta(returns, factor_returns, risk_free=0.0):
     """
 
     # Filter out dates with np.nan as a return value
-    indices = np.intersect1d(
-        returns.dropna().index,
-        factor_returns.dropna().index
-    )
+    indices = pd.concat([returns, factor_returns]).dropna().index
 
     if len(indices) < 2:
         return np.nan

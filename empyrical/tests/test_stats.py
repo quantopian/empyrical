@@ -58,11 +58,11 @@ class TestStats(TestCase):
     # Random noise
     noise = pd.Series(
         [random.gauss(0, 0.001) for i in range(1000)],
-        index=pd.date_range('2000-1-30', periods=1000, freq='D')
+        index=pd.date_range('2000-1-30', periods=1000, freq='D', tz='UTC')
     )
     noise_uniform = pd.Series(
         [random.uniform(-0.01, 0.01) for i in range(1000)],
-        index=pd.date_range('2000-1-30', periods=1000, freq='D')
+        index=pd.date_range('2000-1-30', periods=1000, freq='D', tz='UTC')
     )
 
     # Random noise inv
@@ -71,24 +71,24 @@ class TestStats(TestCase):
     # Flat line
     flat_line_0 = pd.Series(
         np.linspace(0, 0, num=1000),
-        index=pd.date_range('2000-1-30', periods=1000, freq='D')
+        index=pd.date_range('2000-1-30', periods=1000, freq='D', tz='UTC')
     )
     # Flat line
     flat_line_1 = pd.Series(
         np.linspace(0.01, 0.01, num=1000),
-        index=pd.date_range('2000-1-30', periods=1000, freq='D')
+        index=pd.date_range('2000-1-30', periods=1000, freq='D', tz='UTC')
     )
 
     # Positive line
     pos_line = pd.Series(
         np.linspace(0, 1, num=1000),
-        index=pd.date_range('2000-1-30', periods=1000, freq='D')
+        index=pd.date_range('2000-1-30', periods=1000, freq='D', tz='UTC')
     )
 
     # Negative line
     neg_line = pd.Series(
         np.linspace(0, -1, num=1000),
-        index=pd.date_range('2000-1-30', periods=1000, freq='D')
+        index=pd.date_range('2000-1-30', periods=1000, freq='D', tz='UTC')
     )
 
     # Sparse noise, same as noise but with np.nan sprinkled in
@@ -785,7 +785,7 @@ class TestStats(TestCase):
     @parameterized.expand([
         (empty_returns, simple_benchmark, np.nan),
         (one_return, one_return,  np.nan),
-        (mixed_returns, simple_benchmark, np.nan),
+        (mixed_returns, simple_benchmark, 0.44444444444444442),
         (noise, noise, 1.0),
         (noise, inv_noise, -1.0),
     ])
