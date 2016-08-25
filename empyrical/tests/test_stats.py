@@ -35,6 +35,16 @@ class TestStats(TestCase):
         np.array([np.nan, 1., 10., -4., 2., 3., 2., 1., -10.]) / 100,
         index=pd.date_range('2000-1-30', periods=9, freq='D'))
 
+    # Sparse returns with timezone
+    sparse_tz_returns = pd.Series(
+        np.array([np.nan, 1., 10., -4., np.nan, 3., 2., np.nan, -10.]) / 100,
+        index=pd.date_range('2000-1-30', periods=9, freq='D', tz='UTC'))
+
+    # Sparse returns with timezone
+    sparse_tz_benchmark = pd.Series(
+        np.array([0., 0., 0., 1., 1., 1., 1., np.nan, 1.]) / 100,
+        index=pd.date_range('2000-1-30', periods=9, freq='D', tz='UTC'))
+
     # Weekly returns
     weekly_returns = pd.Series(
         np.array([0., 1., 10., -4., 2., 3., 2., 1., -10.])/100,
@@ -414,9 +424,9 @@ class TestStats(TestCase):
     ])
     def test_downside_risk(self, returns, required_return, period, expected):
         downside_risk = empyrical.downside_risk(
-                        returns,
-                        required_return=required_return,
-                        period=period)
+            returns,
+            required_return=required_return,
+            period=period)
         if isinstance(downside_risk, float):
             assert_almost_equal(
                 downside_risk,
@@ -501,9 +511,9 @@ class TestStats(TestCase):
     ])
     def test_sortino(self, returns, required_return, period, expected):
         sortino_ratio = empyrical.sortino_ratio(
-                        returns,
-                        required_return=required_return,
-                        period=period)
+            returns,
+            required_return=required_return,
+            period=period)
         if isinstance(sortino_ratio, float):
             assert_almost_equal(
                 sortino_ratio,
@@ -788,6 +798,8 @@ class TestStats(TestCase):
         (mixed_returns, simple_benchmark, np.nan),
         (noise, noise, 1.0),
         (noise, inv_noise, -1.0),
+        (sparse_noise*flat_line_1, sparse_flat_line_1, 0.0),
+        (sparse_tz_returns, sparse_tz_benchmark, -7.75)
     ])
     def test_beta(self, returns, benchmark, expected):
         assert_almost_equal(
