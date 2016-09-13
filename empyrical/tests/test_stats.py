@@ -800,7 +800,7 @@ class TestStats(TestCase):
     # When faced with data containing np.nan, do not return np.nan. Calculate
     # alpha and beta using dates containing both.
     @parameterized.expand([
-        (sparse_noise, sparse_flat_line_1_tz),
+        (sparse_noise, sparse_noise),
     ])
     def test_alpha_beta_with_nan_inputs(self, returns, benchmark):
         alpha, beta = empyrical.alpha_beta(returns, benchmark)
