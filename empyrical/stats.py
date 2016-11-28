@@ -558,10 +558,10 @@ def sharpe_ratio(returns, risk_free=0, period=DAILY, annualization=None):
     returns_risk_adj = np.asanyarray(_adjust_returns(returns, risk_free))
     returns_risk_adj = returns_risk_adj[~np.isnan(returns_risk_adj)]
 
-    if np.std(returns_risk_adj, ddof=1) == 0:
+    if nanstd(returns_risk_adj, ddof=1) == 0:
         return np.nan
 
-    return np.mean(returns_risk_adj) / np.std(returns_risk_adj, ddof=1) * \
+    return nanmean(returns_risk_adj) / nanstd(returns_risk_adj, ddof=1) * \
         np.sqrt(ann_factor)
 
 

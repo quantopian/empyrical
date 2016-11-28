@@ -3,7 +3,7 @@ from __future__ import division
 import random
 from copy import copy
 from operator import attrgetter
-from unittest import TestCase, skip, SkipTest
+from unittest import TestCase, SkipTest
 
 from nose_parameterized import parameterized
 import numpy as np
@@ -209,26 +209,6 @@ class TestStats(TestCase):
             ),
             expected,
             DECIMAL_PLACES)
-
-    # Multiplying returns by a positive constant larger than 1 will increase
-    # the maximum drawdown by a factor greater than or equal to the constant.
-    # Similarly, a positive constant smaller than 1 will decrease maximum
-    # drawdown by at least the constant.
-    @parameterized.expand([
-        (noise_uniform, 1.1),
-        (noise, 2),
-        (noise_uniform, 10),
-        (noise_uniform, 0.99),
-        (noise, 0.5)
-    ])
-    @skip("Randomly fails")
-    def test_max_drawdown_transformation(self, returns, constant):
-        max_dd = self.empyrical.max_drawdown(returns)
-        transformed_dd = self.empyrical.max_drawdown(constant*returns)
-        if constant >= 1:
-            assert constant*max_dd <= transformed_dd
-        else:
-            assert constant*max_dd >= transformed_dd
 
     # Maximum drawdown is always less than or equal to zero. Translating
     # returns by a positive constant should increase the maximum
