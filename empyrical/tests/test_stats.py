@@ -989,6 +989,44 @@ class TestStats(TestCase):
             noisy_cagr_2,
             1)
 
+    #regression tests for beta_fragility_heuristic
+    @parameterized.expand([
+        (one_return, one_return, np.nan),
+        (positive_returns, simple_benchmark, 0.0),
+        (mixed_returns, simple_benchmark, 0.09),
+        (negative_returns, simple_benchmark, -0.029999999999999999),
+    ])
+    def test_beta_fragility_heuristic(self, returns, factor_returns, expected):
+        assert_almost_equal(
+            self.empyrical.beta_fragility_heuristic(returns, factor_returns),
+            expected,
+            DECIMAL_PLACES)
+
+
+    mixed_returns_expected_gpd_risk_result = [0.05, 0.10001255835838491, 1.5657360018514067e-06, 0.29082525469237713, 0.39083834671363232]
+
+    negative_returns_expected_gpd_risk_result = [0.025, 0.068353586736348199, 9.4304947982121171e-07, 0.31206547376799765, 0.38041939568242211]
+
+    #regression tests for gpd_risk_estimates
+    @parameterized.expand([
+        (one_return, [0, 0, 0, 0]),
+        (empty_returns, [0, 0, 0, 0]),
+        (simple_benchmark, [0, 0, 0, 0]),
+        (positive_returns, [0, 0, 0, 0]),
+        (negative_returns, negative_returns_expected_gpd_risk_result),
+        (mixed_returns, mixed_returns_expected_gpd_risk_result),
+        (flat_line_1, [0, 0, 0, 0]),
+        (weekly_returns, mixed_returns_expected_gpd_risk_result),
+        (monthly_returns, mixed_returns_expected_gpd_risk_result),
+    ])
+    def test_gpd_risk_estimates(self, returns, expected):
+        result = self.empyrical.gpd_risk_estimates_aligned(returns)
+        for result_item, expected_item in zip(result, expected):
+            assert_almost_equal(
+                result_item,
+                expected_item,
+                DECIMAL_PLACES)
+
     @property
     def empyrical(self):
         """
@@ -1248,7 +1286,7 @@ class PassArraysEmpyricalProxy(ConvertPandasEmpyricalProxy):
     functions to numpy arrays.
 
     Calls the underlying
-    empyrical.[alpha|beta|alpha_beta]_aligned functions directly, instead of
+    empyrical.[alpha|beta|alpha_beta|...]_aligned functions directly, instead of
     the wrappers which align Series first.
 
     """
@@ -1258,7 +1296,7 @@ class PassArraysEmpyricalProxy(ConvertPandasEmpyricalProxy):
         )
 
     def __getattr__(self, item):
-        if item in ('alpha', 'beta', 'alpha_beta'):
+        if item in ('alpha', 'beta', 'alpha_beta', 'beta_fragility_heuristic', 'gpd_risk_estimates'):
             item += '_aligned'
 
         return super(PassArraysEmpyricalProxy, self).__getattr__(item)

@@ -17,8 +17,10 @@ from __future__ import division
 
 import pandas as pd
 import numpy as np
-from scipy import stats
+from math import pow
+from scipy import stats, optimize
 from six import iteritems
+from sys import float_info
 
 from .utils import nanmean, nanstd, nanmin
 
@@ -1004,6 +1006,262 @@ def cagr(returns, period=DAILY, annualization=None):
 
     return ending_value ** (1. / no_years) - 1
 
+def beta_fragility_heuristic(returns, factor_returns):
+    """
+    Estimate fragility to drops in beta.
+    A negative return value indicates potential losses could follow volatility in beta.
+    The magnitude of the negative value indicates the size of the potential loss.
+
+    seealso::
+
+    `A New Heuristic Measure of Fragility and
+Tail Risks: Application to Stress Testing <https://www.imf.org/external/pubs/ft/wp/2012/wp12216.pdf>`
+        An IMF Working Paper describing the heuristic
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    factor_returns : pd.Series or np.ndarray
+         Daily noncumulative returns of the factor to which beta is
+         computed. Usually a benchmark such as the market.
+         - This is in the same style as returns.
+
+    Returns
+    -------
+    float, np.nan
+        The beta fragility of the strategy.
+
+    """
+    if len(returns) < 3 or len(factor_returns) < 3:
+        return np.nan
+
+    return beta_fragility_heuristic_aligned(*_aligned_series(returns, factor_returns))
+
+def beta_fragility_heuristic_aligned(returns, factor_returns):
+    """
+    Estimate fragility to drops in beta
+
+    seealso::
+
+    `A New Heuristic Measure of Fragility and
+Tail Risks: Application to Stress Testing <https://www.imf.org/external/pubs/ft/wp/2012/wp12216.pdf>`
+        An IMF Working Paper describing the heuristic
+
+    If they are pd.Series, expects returns and factor_returns have already
+    been aligned on their labels.  If np.ndarray, these arguments should have
+    the same shape.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    factor_returns : pd.Series or np.ndarray
+         Daily noncumulative returns of the factor to which beta is
+         computed. Usually a benchmark such as the market.
+         - This is in the same style as returns.
+
+    Returns
+    -------
+    float, np.nan
+        The beta fragility of the strategy.
+
+    """
+    if len(returns) < 3 or len(factor_returns) < 3:
+        return np.nan
+
+    #combine returns and factor returns into pairs
+    returns_series = pd.Series(returns)
+    factor_returns_series = pd.Series(factor_returns)
+    pairs = pd.concat([returns_series, factor_returns_series], axis=1)
+    pairs.columns = ['returns', 'factor_returns']
+
+    #exclude any rows where returns are nan 
+    pairs = pairs.dropna()
+    #sort by beta
+    pairs = pairs.sort_values(by='factor_returns')
+
+    #find the three vectors, using median of 3
+    start_index = 0
+    mid_index = int(round(len(pairs) / 2, 0))
+    end_index = len(pairs) - 1
+
+    (start_returns, start_factor_returns) = pairs.iloc[start_index]
+    (mid_returns, mid_factor_returns) = pairs.iloc[mid_index]
+    (end_returns, end_factor_returns) = pairs.iloc[end_index]
+
+    factor_returns_range = (end_factor_returns - start_factor_returns)
+    start_returns_weight = 0.5
+    end_returns_weight = 0.5
+
+    #find weights for the start and end returns using a convex combination
+    if not factor_returns_range == 0:
+        start_returns_weight =  (mid_factor_returns - start_factor_returns) / factor_returns_range
+        end_returns_weight = (end_factor_returns - mid_factor_returns) / factor_returns_range
+
+    #calculate fragility heuristic
+    heuristic =  (start_returns_weight*start_returns) + (end_returns_weight*end_returns) - mid_returns
+
+    return heuristic
+
+
+def gpd_risk_estimates(returns, var_p=0.01):
+    """
+    Estimate VaR and ES using the Generalized Pareto Distribution (GPD)
+
+    seealso::
+
+    `An Application of Extreme Value Theory for
+Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
+        A paper describing how to use the Generalized Pareto Distribution to estimate VaR and ES.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    var_p : float
+        The percentile to use for estimating the VaR and ES
+
+    Returns
+    -------
+    [threshold, scale_param, shape_param, var_estimate, es_estimate] : list[float]
+        threshold - the threshold use to cut off exception tail losses
+        scale_param - a parameter (often denoted by sigma, capturing the scale, related to variance)
+        shape_param - a parameter (often denoted by xi, capturing the shape or type of the distribution)
+        var_estimate - an estimate for the VaR for the given percentile
+        es_estimate - an estimate for the ES for the given percentile
+    """
+    if len(returns) < 3:
+        result = np.array([0, 0, 0, 0])
+        if isinstance(returns, pd.Series):
+            result = pd.Series(result)
+        return result
+    return gpd_risk_estimates_aligned(*_aligned_series(returns, var_p))
+
+def gpd_risk_estimates_aligned(returns, var_p=0.01):
+    """
+    Estimate VaR and ES using the Generalized Pareto Distribution (GPD)
+
+    seealso::
+
+    `An Application of Extreme Value Theory for
+Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
+        A paper describing how to use the Generalized Pareto Distribution to estimate VaR and ES.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    var_p : float
+        The percentile to use for estimating the VaR and ES
+
+    Returns
+    -------
+    [threshold, scale_param, shape_param, var_estimate, es_estimate] : list[float]
+        threshold - the threshold use to cut off exception tail losses
+        scale_param - a parameter (often denoted by sigma, capturing the scale, related to variance)
+        shape_param - a parameter (often denoted by xi, capturing the shape or type of the distribution)
+        var_estimate - an estimate for the VaR for the given percentile
+        es_estimate - an estimate for the ES for the given percentile
+    """
+    result = np.array([0.0, 0.0, 0.0, 0.0])
+    if not len(returns) < 3:
+
+        DEFAULT_THRESHOLD = 0.2
+        MINIMUM_THRESHOLD = 0.000000001
+        returns_array = pd.Series(returns).as_matrix()
+        flipped_returns = -1*returns_array
+        filtered_returns = flipped_returns[flipped_returns>0]
+        threshold = DEFAULT_THRESHOLD
+        finished = False
+        scale_param = 0
+        shape_param = 0
+        while not finished and threshold > MINIMUM_THRESHOLD:
+            iteration_returns = filtered_returns[filtered_returns>=threshold]
+            param_result = gpd_loglikelihood_minimizer_aligned(iteration_returns)
+            if (param_result[0] != False and param_result[1] != False):
+                scale_param = param_result[0]
+                shape_param = param_result[1]
+                #non-negative shape parameter is required for fat tails
+                if (shape_param > 0):
+                    finished = True
+            threshold = threshold / 2
+        if (finished):
+            var_estimate = gpd_var_calculator(threshold, scale_param, shape_param, var_p, len(returns_array), len(iteration_returns)) 
+            es_estimate = gpd_es_calculator(var_estimate, threshold, scale_param, shape_param)
+            result = np.array([threshold, scale_param, shape_param, var_estimate, es_estimate])
+    if isinstance(returns, pd.Series):
+        result = pd.Series(result)
+    return result
+
+def gpd_es_calculator(var_estimate, threshold, scale_param, shape_param):
+    result = 0
+    if ((1 - shape_param) != 0):
+        result = (var_estimate/(1-shape_param))+((scale_param-(shape_param*threshold))/(1-shape_param))
+    return result
+
+def gpd_var_calculator(threshold, scale_param, shape_param, probability, total_n, exceedance_n):
+    result = 0
+    if (exceedance_n > 0 and shape_param > 0):
+        result = threshold+((scale_param/shape_param)*(pow((total_n/exceedance_n)*probability, -shape_param)-1))
+    return result
+
+def gpd_loglikelihood_minimizer_aligned(price_data):
+    result = [False, False]
+    DEFAULT_SCALE_PARAM = 1
+    DEFAULT_SHAPE_PARAM = 1
+    if (len(price_data) > 0):
+        gpd_loglikelihood_lambda = gpd_loglikelihood_factory(price_data)
+        optimization_results = optimize.minimize(gpd_loglikelihood_lambda, [DEFAULT_SCALE_PARAM, DEFAULT_SHAPE_PARAM], method='Nelder-Mead')
+        if optimization_results.success:
+            resulting_params = optimization_results.x
+            if len(resulting_params) == 2:
+                result[0] = resulting_params[0]
+                result[1] = resulting_params[1]
+    return result
+
+def gpd_loglikelihood_factory(price_data):
+    return lambda params: gpd_loglikelihood(params, price_data)
+
+def gpd_loglikelihood(params, price_data):
+    if (params[1] != 0):
+        return -gpd_loglikelihood_scale_and_shape(params[0], params[1], price_data)
+    else:
+        return -gpd_loglikelihood_scale_only(params[0], price_data)
+
+def gpd_loglikelihood_scale_and_shape_factory(price_data):
+    n = len(price_data)
+    #minimize a function of two variables requires a list of params
+    #we are expecting the lambda below to be called as follows:
+    #parameters = [scale, shape]
+    #the final outer negative is added because scipy only minimizes, not maximizes
+    return lambda params: -gpd_loglikelihood_scale_and_shape( params[0], params[1], price_data)
+
+def gpd_loglikelihood_scale_and_shape(scale, shape, price_data):
+    n = len(price_data)
+    result = -1 * float_info.max
+    if (scale != 0):
+        param_factor = shape / scale
+        if (shape != 0 and param_factor >= 0 and scale >= 0):
+            result = ((-n * np.log(scale))-(((1 / shape) + 1) * (np.log((shape / scale * price_data) + 1)).sum()))
+    return result
+
+def gpd_loglikelihood_scale_only_factory(price_data):
+    #the negative is added because scipy only minimizes and we want to maximize
+    return lambda scale: -gpd_loglikelihood_scale_only(scale, price_data)
+
+def gpd_loglikelihood_scale_only(scale, price_data):
+    n = len(price_data)
+    data_sum = price_data.sum()
+    result = -1 * float_info.max
+    if (scale >= 0):
+        result = ((-n*np.log(scale)) - (data_sum/scale))
+    return result
+
 
 SIMPLE_STAT_FUNCS = [
     cum_returns_final,
@@ -1018,7 +1276,9 @@ SIMPLE_STAT_FUNCS = [
     stats.skew,
     stats.kurtosis,
     tail_ratio,
-    cagr
+    cagr,
+    beta_fragility_heuristic,
+    gpd_risk_estimates,
 ]
 
 FACTOR_STAT_FUNCS = [
