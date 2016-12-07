@@ -3,7 +3,7 @@ from __future__ import division
 import random
 from copy import copy
 from operator import attrgetter
-from unittest import TestCase, skip, SkipTest
+from unittest import TestCase, SkipTest
 
 from nose_parameterized import parameterized
 import numpy as np
@@ -210,26 +210,6 @@ class TestStats(TestCase):
             expected,
             DECIMAL_PLACES)
 
-    # Multiplying returns by a positive constant larger than 1 will increase
-    # the maximum drawdown by a factor greater than or equal to the constant.
-    # Similarly, a positive constant smaller than 1 will decrease maximum
-    # drawdown by at least the constant.
-    @parameterized.expand([
-        (noise_uniform, 1.1),
-        (noise, 2),
-        (noise_uniform, 10),
-        (noise_uniform, 0.99),
-        (noise, 0.5)
-    ])
-    @skip("Randomly fails")
-    def test_max_drawdown_transformation(self, returns, constant):
-        max_dd = self.empyrical.max_drawdown(returns)
-        transformed_dd = self.empyrical.max_drawdown(constant*returns)
-        if constant >= 1:
-            assert constant*max_dd <= transformed_dd
-        else:
-            assert constant*max_dd >= transformed_dd
-
     # Maximum drawdown is always less than or equal to zero. Translating
     # returns by a positive constant should increase the maximum
     # drawdown to a maximum of zero. Translating by a negative constant
@@ -265,9 +245,9 @@ class TestStats(TestCase):
 
     @parameterized.expand([
         (flat_line_1_tz, empyrical.DAILY, 0.0),
-        (mixed_returns, empyrical.DAILY, 0.9136465399704637),
-        (weekly_returns, empyrical.WEEKLY, 0.38851569394870583),
-        (monthly_returns, empyrical.MONTHLY, 0.18663690238892558)
+        (mixed_returns, empyrical.DAILY, 0.8546380812952347),
+        (weekly_returns, empyrical.WEEKLY, 0.36629610905136956),
+        (monthly_returns, empyrical.MONTHLY, 0.17596295906514803)
     ])
     def test_annual_volatility(self, returns, period, expected):
         assert_almost_equal(
@@ -333,10 +313,10 @@ class TestStats(TestCase):
         (empty_returns, 0.0, np.nan),
         (one_return, 0.0, np.nan),
         (mixed_returns, mixed_returns, np.nan),
-        (mixed_returns, 0.0, 1.7238613961706866),
-        (mixed_returns, simple_benchmark, 0.34111411441060574),
-        (positive_returns, 0.0, 52.915026221291804),
-        (negative_returns, 0.0, -24.406808633910085)
+        (mixed_returns, 0.0, 1.842885350501853),
+        (mixed_returns, simple_benchmark, 0.36466632740494126),
+        (positive_returns, 0.0, 56.124860801609117),
+        (negative_returns, 0.0, -25.887329838240298)
     ])
     def test_sharpe_ratio(self, returns, risk_free, expected):
         assert_almost_equal(
@@ -638,8 +618,8 @@ class TestStats(TestCase):
         (empty_returns, 0.0, np.nan),
         (one_return, 0.0, np.nan),
         (pos_line, pos_line, np.nan),
-        (mixed_returns, 0.0, 0.10859306069076737),
-        (mixed_returns, flat_line_1, -0.06515583641446039),
+        (mixed_returns, 0.0, 0.11609086505314305),
+        (mixed_returns, flat_line_1, -0.0696545190318858),
     ])
     def test_information_ratio(self, returns, factor_returns, expected):
         assert_almost_equal(

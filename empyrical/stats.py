@@ -323,7 +323,7 @@ def annual_volatility(returns, period=DAILY, alpha=2.0,
 
     ann_factor = annualization_factor(period, annualization)
 
-    volatility = nanstd(returns, ddof=1) * (ann_factor ** (1.0 / alpha))
+    volatility = nanstd(returns) * (ann_factor ** (1.0 / alpha))
 
     return volatility
 
@@ -476,10 +476,10 @@ def sharpe_ratio(returns, risk_free=0, period=DAILY, annualization=None):
     returns_risk_adj = np.asanyarray(_adjust_returns(returns, risk_free))
     returns_risk_adj = returns_risk_adj[~np.isnan(returns_risk_adj)]
 
-    if np.std(returns_risk_adj, ddof=1) == 0:
+    if nanstd(returns_risk_adj) == 0:
         return np.nan
 
-    return np.mean(returns_risk_adj) / np.std(returns_risk_adj, ddof=1) * \
+    return np.mean(returns_risk_adj) / nanstd(returns_risk_adj) * \
         np.sqrt(ann_factor)
 
 
@@ -613,7 +613,7 @@ def information_ratio(returns, factor_returns):
         return np.nan
 
     active_return = _adjust_returns(returns, factor_returns)
-    tracking_error = nanstd(active_return, ddof=1)
+    tracking_error = nanstd(active_return)
     if np.isnan(tracking_error):
         return 0.0
     if tracking_error == 0:
