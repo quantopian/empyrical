@@ -1207,8 +1207,8 @@ Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
                 filtered_returns[filtered_returns >= threshold]
             param_result = \
                 gpd_loglikelihood_minimizer_aligned(iteration_returns)
-            if (param_result[0] is not False
-                    and param_result[1] is not False):
+            if (param_result[0] is not False and
+                    param_result[1] is not False):
                 scale_param = param_result[0]
                 shape_param = param_result[1]
                 # non-negative shape parameter is required for fat tails
