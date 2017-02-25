@@ -326,7 +326,7 @@ class TestStats(TestCase):
     def test_omega_returns(self, returns, required_return_less,
                            required_return_more):
         assert self.empyrical.omega_ratio(returns, required_return_less) > \
-               self.empyrical.omega_ratio(returns, required_return_more)
+            self.empyrical.omega_ratio(returns, required_return_more)
 
     # Regressive sharpe ratio tests
     @parameterized.expand([
@@ -989,7 +989,7 @@ class TestStats(TestCase):
             noisy_cagr_2,
             1)
 
-    #regression tests for beta_fragility_heuristic
+    # regression tests for beta_fragility_heuristic
     @parameterized.expand([
         (one_return, one_return, np.nan),
         (positive_returns, simple_benchmark, 0.0),
@@ -1002,12 +1002,19 @@ class TestStats(TestCase):
             expected,
             DECIMAL_PLACES)
 
+    mixed_returns_expected_gpd_risk_result = [0.05,
+                                              0.10001255835838491,
+                                              1.5657360018514067e-06,
+                                              0.29082525469237713,
+                                              0.39083834671363232]
 
-    mixed_returns_expected_gpd_risk_result = [0.05, 0.10001255835838491, 1.5657360018514067e-06, 0.29082525469237713, 0.39083834671363232]
+    negative_returns_expected_gpd_risk_result = [0.025,
+                                                 0.068353586736348199,
+                                                 9.4304947982121171e-07,
+                                                 0.31206547376799765,
+                                                 0.38041939568242211]
 
-    negative_returns_expected_gpd_risk_result = [0.025, 0.068353586736348199, 9.4304947982121171e-07, 0.31206547376799765, 0.38041939568242211]
-
-    #regression tests for gpd_risk_estimates
+    # regression tests for gpd_risk_estimates
     @parameterized.expand([
         (one_return, [0, 0, 0, 0]),
         (empty_returns, [0, 0, 0, 0]),
@@ -1282,12 +1289,12 @@ class ConvertPandasEmpyricalProxy(ReturnTypeEmpyricalProxy):
 
 class PassArraysEmpyricalProxy(ConvertPandasEmpyricalProxy):
     """
-    A ConvertPandasEmpyricalProxy which converts NDFrame inputs to empyrical
-    functions to numpy arrays.
+    A ConvertPandasEmpyricalProxy which converts NDFrame inputs to
+    empyrical functions to numpy arrays.
 
     Calls the underlying
-    empyrical.[alpha|beta|alpha_beta|...]_aligned functions directly, instead of
-    the wrappers which align Series first.
+    empyrical.[alpha|beta|alpha_beta|...]_aligned functions directly, instead
+    of the wrappers which align Series first.
 
     """
     def __init__(self, test_case, return_types):
@@ -1296,7 +1303,8 @@ class PassArraysEmpyricalProxy(ConvertPandasEmpyricalProxy):
         )
 
     def __getattr__(self, item):
-        if item in ('alpha', 'beta', 'alpha_beta', 'beta_fragility_heuristic', 'gpd_risk_estimates'):
+        if item in ('alpha', 'beta', 'alpha_beta',
+                    'beta_fragility_heuristic', 'gpd_risk_estimates'):
             item += '_aligned'
 
         return super(PassArraysEmpyricalProxy, self).__getattr__(item)
