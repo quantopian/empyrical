@@ -1092,7 +1092,7 @@ Tail Risks: Application to Stress Testing`
 
     # find the three vectors, using median of 3
     start_index = 0
-    mid_index = int(round(len(pairs) / 2, 0))
+    mid_index = int(np.around(len(pairs) / 2, 0))
     end_index = len(pairs) - 1
 
     (start_returns, start_factor_returns) = pairs.iloc[start_index]
