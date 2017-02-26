@@ -1016,10 +1016,10 @@ class TestStats(TestCase):
 
     # regression tests for gpd_risk_estimates
     @parameterized.expand([
-        (one_return, [0, 0, 0, 0]),
-        (empty_returns, [0, 0, 0, 0]),
-        (simple_benchmark, [0, 0, 0, 0]),
-        (positive_returns, [0, 0, 0, 0]),
+        (one_return, [0, 0, 0, 0, 0]),
+        (empty_returns, [0, 0, 0, 0, 0]),
+        (simple_benchmark, [0, 0, 0, 0, 0]),
+        (positive_returns, [0, 0, 0, 0, 0]),
         (negative_returns, negative_returns_expected_gpd_risk_result),
         (mixed_returns, mixed_returns_expected_gpd_risk_result),
         (flat_line_1, [0, 0, 0, 0]),

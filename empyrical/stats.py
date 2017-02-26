@@ -1152,7 +1152,7 @@ Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
         es_estimate - an estimate for the ES for the given percentile
     """
     if len(returns) < 3:
-        result = np.array([0, 0, 0, 0])
+        result = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
         if isinstance(returns, pd.Series):
             result = pd.Series(result)
         return result
@@ -1190,7 +1190,7 @@ Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
         var_estimate - an estimate for the VaR for the given percentile
         es_estimate - an estimate for the ES for the given percentile
     """
-    result = np.array([0.0, 0.0, 0.0, 0.0])
+    result = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
     if not len(returns) < 3:
 
         DEFAULT_THRESHOLD = 0.2
