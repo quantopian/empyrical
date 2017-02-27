@@ -1002,17 +1002,17 @@ class TestStats(TestCase):
             expected,
             DECIMAL_PLACES)
 
-    mixed_returns_expected_gpd_risk_result = [0.05,
+    mixed_returns_expected_gpd_risk_result = [0.1,
                                               0.10001255835838491,
                                               1.5657360018514067e-06,
-                                              0.29082525469237713,
-                                              0.39083834671363232]
+                                              0.4912526273742347,
+                                              0.59126595492541179]
 
-    negative_returns_expected_gpd_risk_result = [0.025,
+    negative_returns_expected_gpd_risk_result = [0.05,
                                                  0.068353586736348199,
                                                  9.4304947982121171e-07,
-                                                 0.31206547376799765,
-                                                 0.38041939568242211]
+                                                 0.34511639904932639,
+                                                 0.41347032855617882]
 
     # regression tests for gpd_risk_estimates
     @parameterized.expand([

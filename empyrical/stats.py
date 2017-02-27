@@ -1197,29 +1197,31 @@ Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
         MINIMUM_THRESHOLD = 0.000000001
         returns_array = pd.Series(returns).as_matrix()
         flipped_returns = -1 * returns_array
-        filtered_returns = flipped_returns[flipped_returns > 0]
+        losses = flipped_returns[flipped_returns > 0]
         threshold = DEFAULT_THRESHOLD
         finished = False
         scale_param = 0
         shape_param = 0
         while not finished and threshold > MINIMUM_THRESHOLD:
-            iteration_returns = \
-                filtered_returns[filtered_returns >= threshold]
+            losses_beyond_threshold = \
+                losses[losses >= threshold]
             param_result = \
-                gpd_loglikelihood_minimizer_aligned(iteration_returns)
+                gpd_loglikelihood_minimizer_aligned(losses_beyond_threshold)
             if (param_result[0] is not False and
                     param_result[1] is not False):
                 scale_param = param_result[0]
                 shape_param = param_result[1]
+                var_estimate = gpd_var_calculator(threshold, scale_param,
+                                                  shape_param, var_p,
+                                                  len(losses),
+                                                  len(losses_beyond_threshold))
                 # non-negative shape parameter is required for fat tails
-                if (shape_param > 0):
+                # non-negative VaR estimate is required for loss of some kind
+                if (shape_param > 0 and var_estimate > 0):
                     finished = True
-            threshold = threshold / 2
+            if (not finished):
+                threshold = threshold / 2
         if (finished):
-            var_estimate = gpd_var_calculator(threshold, scale_param,
-                                              shape_param, var_p,
-                                              len(returns_array),
-                                              len(iteration_returns))
             es_estimate = gpd_es_calculator(var_estimate, threshold,
                                             scale_param, shape_param)
             result = np.array([threshold, scale_param, shape_param,
@@ -1233,9 +1235,11 @@ def gpd_es_calculator(var_estimate, threshold, scale_param,
                       shape_param):
     result = 0
     if ((1 - shape_param) != 0):
-        result = (var_estimate/(1 - shape_param)) + \
-            ((scale_param - (shape_param * threshold)) /
-                (1 - shape_param))
+        # this formula is from Gilli and Kellezi pg. 8
+        var_ratio = (var_estimate/(1 - shape_param))
+        param_ratio = ((scale_param - (shape_param * threshold)) /
+                       (1 - shape_param))
+        result = var_ratio + param_ratio
     return result
 
 
@@ -1243,9 +1247,11 @@ def gpd_var_calculator(threshold, scale_param, shape_param,
                        probability, total_n, exceedance_n):
     result = 0
     if (exceedance_n > 0 and shape_param > 0):
-        result = threshold+((scale_param / shape_param) *
-                            (pow((total_n/exceedance_n) *
-                             probability, -shape_param) - 1))
+        # this formula is from Gilli and Kellezi pg. 12
+        param_ratio = scale_param / shape_param
+        prob_ratio = (total_n/exceedance_n) * probability
+        result = threshold + (param_ratio *
+                              (pow(prob_ratio, -shape_param) - 1))
     return result
 
 
