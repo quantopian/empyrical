@@ -242,7 +242,7 @@ def max_drawdown(returns):
 
     cumulative = cum_returns(returns, starting_value=100)
     max_return = np.fmax.accumulate(cumulative)
-    return nanmin((cumulative - max_return) / max_return)
+    return nanmin((cumulative - max_return) / max_return).min() #Fix43
 
 
 def annual_return(returns, period=DAILY, annualization=None):
