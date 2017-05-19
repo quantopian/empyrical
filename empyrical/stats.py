@@ -1107,7 +1107,7 @@ def roll_up_capture(returns, factor_returns, window=10, **kwargs):
 
     window : int, required
         Size of the rolling window in terms of the periodicity of the data.
-        - e.g window = 60, represents a rolling 60 day window.
+        - e.g window = 60, periodicity=DAILY, represents a rolling 60 day window.
     """
     return roll(returns, factor_returns,
         window=window,
@@ -1124,7 +1124,7 @@ def roll_down_capture(returns, factor_returns, window=10, **kwargs):
 
     window : int, required
         Size of the rolling window in terms of the periodicity of the data.
-        - e.g window = 60, represents a rolling 60 day window.
+        - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
     return roll(returns, factor_returns,
         window=window,
@@ -1141,7 +1141,7 @@ def roll_up_down_capture(returns, factor_returns, window=10, **kwargs):
 
     window : int, required
         Size of the rolling window in terms of the periodicity of the data.
-        - e.g window = 60, represents a rolling 60 day window.
+        - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
     return roll(returns, factor_returns,
         window=window,
@@ -1158,7 +1158,7 @@ def roll_max_drawdown(returns, window=10, **kwargs):
 
     window : int, required
         Size of the rolling window in terms of the periodicity of the data.
-        - e.g window = 60, represents a rolling 60 day window.
+        - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
     return roll(returns, window=window, functions=[max_drawdown], **kwargs)
 
@@ -1172,7 +1172,7 @@ def roll_alpha_beta(returns, factor_returns, window=10, **kwargs):
 
     window : int, required
         Size of the rolling window in terms of the periodicity of the data.
-        - e.g window = 60, represents a rolling 60 day window.
+        - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
     return roll(returns, factor_returns,
         window=window,
@@ -1189,7 +1189,7 @@ def roll_sharpe_ratio(returns, window=10, **kwargs):
 
     window : int, required
         Size of the rolling window in terms of the periodicity of the data.
-        - e.g window = 60, represents a rolling 60 day window.
+        - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
     return roll(returns, window=window, functions=[sharpe_ratio], **kwargs)
 
