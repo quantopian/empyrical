@@ -5,7 +5,7 @@ from copy import copy
 from operator import attrgetter
 from unittest import TestCase, skip, SkipTest
 
-from nose_parameterized import parameterized
+from parameterized import parameterized
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
 import pandas as pd
@@ -946,6 +946,15 @@ class TestStats(TestCase):
             self.empyrical.cagr(returns, period=period),
             expected,
             DECIMAL_PLACES)
+
+    @parameterized.expand([
+        (empty_returns, 3, np.nan),
+        (negative_returns, 3, [])
+    ])
+    def test_roll_max_drawdown(self, returns, window, expected):
+
+        print (self.empyrical.roll(
+            returns, window=window, func = self.empyrical.max_drawdown))
 
     # CAGR is calculated by the starting and ending value of returns,
     # translating returns by a constant will change cagr in the same
