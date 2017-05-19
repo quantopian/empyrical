@@ -21,7 +21,7 @@ from scipy import stats
 from six import iteritems
 
 from .utils import nanmean, nanstd, nanmin, up, down, roll
-from .periods import ANNUALIZATION_FACTORS, DAILY
+from .periods import ANNUALIZATION_FACTORS, DAILY, APPROX_BDAYS_PER_YEAR
 
 
 def _adjust_returns(returns, adjustment_factor):
@@ -575,7 +575,7 @@ def downside_risk(returns, required_return=0, period=DAILY,
 
 def excess_sharpe(returns, factor_returns):
     """
-    Determines the Information ratio of a strategy.
+    Determines the Excess Sharpe of a strategy.
 
     Parameters
     ----------
@@ -588,11 +588,11 @@ def excess_sharpe(returns, factor_returns):
     Returns
     -------
     float
-        The information ratio.
+        The excess sharpe.
 
     Note
     -----
-    The Excess Sharpe is a simplified Information Ratio that uses
+    The excess Sharpe is a simplified Information Ratio that uses
     tracking error rather than "active risk" as the denominator.
 
     """
