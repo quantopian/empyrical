@@ -20,7 +20,7 @@ import numpy as np
 from scipy import stats
 from six import iteritems
 
-from .utils import nanmean, nanstd, nanmin
+from .utils import nanmean, nanstd, nanmin, up, down, roll
 
 
 APPROX_BDAYS_PER_MONTH = 21
@@ -240,8 +240,12 @@ def max_drawdown(returns):
     if len(returns) < 1:
         return np.nan
 
-    cumulative = cum_returns(returns, starting_value=100)
+    if type(returns) == pd.Series:
+        returns = returns.values
+
+    cumulative = np.insert(cum_returns(returns, starting_value=100), 0, 100)
     max_return = np.fmax.accumulate(cumulative)
+
     return nanmin((cumulative - max_return) / max_return)
 
 
@@ -1004,6 +1008,61 @@ def cagr(returns, period=DAILY, annualization=None):
 
     return ending_value ** (1. / no_years) - 1
 
+def capture(returns, factor_returns, period=DAILY):
+    """
+    Compute capture ratio.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    factor_returns : pd.Series or np.ndarray
+        Noncumulative returns of the factor to which beta is
+        computed. Usually a benchmark such as the market.
+        - This is in the same style as returns.
+    period : str, optional
+        Defines the periodicity of the 'returns' data for purposes of
+        annualizing. Value ignored if `annualization` parameter is specified.
+        Defaults are:
+            'monthly':12
+            'weekly': 52
+            'daily': 252
+    Returns
+    -------
+    float, np.nan
+        The CAGR value.
+    """
+    return ( annual_return(returns,period=period) /
+             annual_return(factor_returns, period=period) )
+
+def up_capture(returns, factor_returns, **kwargs):
+
+    return up(returns, factor_returns, function=[capture], **kwargs)
+
+def down_capture(returns, factor_returns, **kwargs):
+    return down(returns, factor_returns, function=[capture], **kwargs)
+
+def up_down_capture(returns, factor_returns, **kwargs):
+    return up_capture(*args, **kwargs) / down_capture(*args, **kwargs)
+
+def up_alpha_beta(returns, factor_returns, **kwargs):
+    return  up(returns, factor_returns, function=[alpha_beta], **kwargs)
+
+def down_alpha_beta(returns, factor_returns, **kwargs):
+    return down(returns, factor_returns, function=[alpha_beta], **kwargs)
+
+def roll_up_capture(returns, factor_returns, **kwargs):
+    return roll(returns, factor_returns, function=[up, capture], **kwargs)
+
+def roll_down_capture(returns, factor_returns, **kwargs):
+    return roll(returns, factor_returns, function=[down, capture], **kwargs)
+
+def roll_up_down_capture(returns, factor_returns, **kwargs):
+    return roll(returns, factor_returns, function=[up_down_capture], **kwargs)
+
+def roll_max_drawdown(returns, factor_returns, **kwargs):
+    return roll(returns, function=[max_drawdown], **kwargs)
 
 SIMPLE_STAT_FUNCS = [
     cum_returns_final,
