@@ -32,6 +32,11 @@ class TestStats(TestCase):
 
     # All negative returns
     negative_returns = pd.Series(
+        np.array([0., -6., -7., -1., -9., -2., -6., -8., -5.]) / 100,
+        index=pd.date_range('2000-1-30', periods=9, freq='D'))
+
+    # All negative returns
+    all_negative_returns = pd.Series(
         np.array([-2., -6., -7., -1., -9., -2., -6., -8., -5.]) / 100,
         index=pd.date_range('2000-1-30', periods=9, freq='D'))
 
@@ -197,6 +202,7 @@ class TestStats(TestCase):
         (mixed_returns, -0.1),
         (positive_returns, -0.0),
         (negative_returns, -0.36590730349873601),
+        (all_negative_returns, -0.3785891574287616)
         (pd.Series(
             np.array([10, -10, 10]) / 100,
             index=pd.date_range('2000-1-30', periods=3, freq='D')),
@@ -990,14 +996,12 @@ class TestStats(TestCase):
             1)
 
     @parameterized.expand([
-        (empty_returns, 3, np.nan),
-        (negative_returns, 3, [])
+        (empty_returns, 6, []),
+        (negative_returns, 6, [-0.2282, -0.2745, -0.2899])
     ])
     def test_roll_max_drawdown(self, returns, window, expected):
-
-        print (self.empyrical.roll(
-            returns, window=window, func = self.empyrical.max_drawdown))
-
+        test = self.empyrical.roll_max_drawdown(returns, window=window)
+        assert_almost_equal( np.asarray(test), np.asarray(expected), 4)
 
     @property
     def empyrical(self):
