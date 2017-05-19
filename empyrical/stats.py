@@ -1030,7 +1030,7 @@ def up_capture(returns, factor_returns, **kwargs):
     -------
     float, np.nan
     """
-    return up(returns, factor_returns, function=[capture], **kwargs)
+    return up(returns, factor_returns, functions=[capture], **kwargs)
 
 def down_capture(returns, factor_returns, **kwargs):
     """
@@ -1044,7 +1044,7 @@ def down_capture(returns, factor_returns, **kwargs):
     -------
     float, np.nan
     """
-    return down(returns, factor_returns, function=[capture], **kwargs)
+    return down(returns, factor_returns, functions=[capture], **kwargs)
 
 def up_down_capture(returns, factor_returns, **kwargs):
     """
@@ -1077,7 +1077,7 @@ def up_alpha_beta(returns, factor_returns, **kwargs):
         float
             Beta.
     """
-    return  up(returns, factor_returns, function=[alpha_beta], **kwargs)
+    return  up(returns, factor_returns, functions=[alpha_beta], **kwargs)
 
 def down_alpha_beta(returns, factor_returns, **kwargs):
     """
@@ -1095,9 +1095,9 @@ def down_alpha_beta(returns, factor_returns, **kwargs):
         float
             Beta.
     """
-    return down(returns, factor_returns, function=[alpha_beta], **kwargs)
+    return down(returns, factor_returns, functions=[alpha_beta], **kwargs)
 
-def roll_up_capture(returns, factor_returns, **kwargs):
+def roll_up_capture(returns, factor_returns, window=10, **kwargs):
     """
     Computes the up capture measure over a rolling window.
 
@@ -1109,9 +1109,12 @@ def roll_up_capture(returns, factor_returns, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - e.g window = 60, represents a rolling 60 day window.
     """
-    return roll(returns, factor_returns, function=[up, capture], **kwargs)
+    return roll(returns, factor_returns,
+        window=window,
+        functions=[up, capture],
+        **kwargs)
 
-def roll_down_capture(returns, factor_returns, **kwargs):
+def roll_down_capture(returns, factor_returns, window=10, **kwargs):
     """
     Computes the down capture measure over a rolling window.
 
@@ -1123,9 +1126,12 @@ def roll_down_capture(returns, factor_returns, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - e.g window = 60, represents a rolling 60 day window.
     """
-    return roll(returns, factor_returns, function=[down, capture], **kwargs)
+    return roll(returns, factor_returns,
+        window=window,
+        functions=[down, capture],
+        **kwargs)
 
-def roll_up_down_capture(returns, factor_returns, **kwargs):
+def roll_up_down_capture(returns, factor_returns, window=10, **kwargs):
     """
     Computes the up/down capture measure over a rolling window.
 
@@ -1137,9 +1143,12 @@ def roll_up_down_capture(returns, factor_returns, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - e.g window = 60, represents a rolling 60 day window.
     """
-    return roll(returns, factor_returns, function=[up_down_capture], **kwargs)
+    return roll(returns, factor_returns,
+        window=window,
+        functions=[up_down_capture],
+        **kwargs)
 
-def roll_max_drawdown(returns, **kwargs):
+def roll_max_drawdown(returns, window=10, **kwargs):
     """
     Computes the max_drawdown measure over a rolling window.
 
@@ -1151,9 +1160,9 @@ def roll_max_drawdown(returns, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - e.g window = 60, represents a rolling 60 day window.
     """
-    return roll(returns, function=[max_drawdown], **kwargs)
+    return roll(returns, window=window, functions=[max_drawdown], **kwargs)
 
-def roll_alpha_beta(returns, factor_returns, **kwargs):
+def roll_alpha_beta(returns, factor_returns, window=10, **kwargs):
     """
     Computes the alpha_beta measure over a rolling window.
 
@@ -1165,9 +1174,12 @@ def roll_alpha_beta(returns, factor_returns, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - e.g window = 60, represents a rolling 60 day window.
     """
-    return roll(returns, factor_returns, function=[alpha_beta], **kwargs)
+    return roll(returns, factor_returns,
+        window=window,
+        functions=[alpha_beta],
+        **kwargs)
 
-def roll_sharpe_ratio(returns, **kwargs):
+def roll_sharpe_ratio(returns, window=10, **kwargs):
     """
     Computes the sharpe ratio measure over a rolling window.
 
@@ -1179,7 +1191,7 @@ def roll_sharpe_ratio(returns, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - e.g window = 60, represents a rolling 60 day window.
     """
-    return roll(returns, function=[sharpe_ratio], **kwargs)
+    return roll(returns, window=window, functions=[sharpe_ratio], **kwargs)
 
 SIMPLE_STAT_FUNCS = [
     cum_returns_final,
