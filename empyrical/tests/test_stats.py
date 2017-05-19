@@ -32,7 +32,7 @@ class TestStats(TestCase):
 
     # All negative returns
     negative_returns = pd.Series(
-        np.array([0., -6., -7., -1., -9., -2., -6., -8., -5.]) / 100,
+        np.array([-2., -6., -7., -1., -9., -2., -6., -8., -5.]) / 100,
         index=pd.date_range('2000-1-30', periods=9, freq='D'))
 
     # Positive and negative returns with max drawdown
@@ -947,15 +947,6 @@ class TestStats(TestCase):
             expected,
             DECIMAL_PLACES)
 
-    @parameterized.expand([
-        (empty_returns, 3, np.nan),
-        (negative_returns, 3, [])
-    ])
-    def test_roll_max_drawdown(self, returns, window, expected):
-
-        print (self.empyrical.roll(
-            returns, window=window, func = self.empyrical.max_drawdown))
-
     # CAGR is calculated by the starting and ending value of returns,
     # translating returns by a constant will change cagr in the same
     # direction of translation.
@@ -997,6 +988,16 @@ class TestStats(TestCase):
             cagr,
             noisy_cagr_2,
             1)
+
+    @parameterized.expand([
+        (empty_returns, 3, np.nan),
+        (negative_returns, 3, [])
+    ])
+    def test_roll_max_drawdown(self, returns, window, expected):
+
+        print (self.empyrical.roll(
+            returns, window=window, func = self.empyrical.max_drawdown))
+
 
     @property
     def empyrical(self):
