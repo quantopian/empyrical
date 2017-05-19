@@ -33,3 +33,35 @@ except ImportError:
     nanmin = np.nanmin
     nanargmax = np.nanargmax
     nanargmin = np.nanargmin
+
+import pandas as pd
+
+def roll(*args, **kwargs):
+    func, kwargs = _pop_kwargs('function', kwargs)
+    window = kwargs.pop('window')
+    data = {}
+    for i in range(window, args[0].index.size):
+        rets = [s.iloc[i-window:i] for s in args]
+        data[args[0].index[i]] = func(*rets, **kwargs)
+    if isinstance(args[0], pd.Series):
+        return pd.Series(data)
+    return pd.DataFrame(data)
+
+def up(returns, factor_returns, **kwargs):
+    func, kwargs = _pop_kwargs('function', kwargs)
+    returns = returns[factor_returns > 0]
+    factor_returns = factor_returns[factor_returns > 0]
+    return func(returns, factor_returns, **kwargs)
+
+def down(returns, factor_returns, **kwargs):
+    func, kwargs = _pop_kwargs('function', kwargs)
+    returns = returns[factor_returns < 0]
+    factor_returns = factor_returns[factor_returns < 0]
+    return func(returns, factor_returns, **kwargs)
+
+def _pop_kwargs(sym, kwargs):
+    funcs = kwargs.pop(sym)
+    func = funcs[0]
+    if funcs[1:]:
+        kwargs[sym] = [1:]
+    return func, kwargs
