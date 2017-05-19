@@ -40,6 +40,21 @@ from .stats import (
     stability_of_timeseries,
     tail_ratio,
     cagr,
+    capture,
+    up_capture,
+    down_capture,
+    up_down_capture,
+    up_alpha_beta,
+    down_alpha_beta,
+    roll_max_drawdown,
+    roll_up_capture,
+    roll_down_capture,
+    roll_up_down_capture,
+    roll_alpha_beta,
+    roll_sharpe_ratio,
+)
+
+from .periods import (
     DAILY,
     WEEKLY,
     MONTHLY,

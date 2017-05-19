@@ -63,5 +63,5 @@ def _pop_kwargs(sym, kwargs):
     funcs = kwargs.pop(sym)
     func = funcs[0]
     if funcs[1:]:
-        kwargs[sym] = [1:]
+        kwargs[sym] = funcs[1:]
     return func, kwargs

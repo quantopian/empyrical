@@ -21,26 +21,7 @@ from scipy import stats
 from six import iteritems
 
 from .utils import nanmean, nanstd, nanmin, up, down, roll
-
-
-APPROX_BDAYS_PER_MONTH = 21
-APPROX_BDAYS_PER_YEAR = 252
-
-MONTHS_PER_YEAR = 12
-WEEKS_PER_YEAR = 52
-
-DAILY = 'daily'
-WEEKLY = 'weekly'
-MONTHLY = 'monthly'
-YEARLY = 'yearly'
-
-ANNUALIZATION_FACTORS = {
-    DAILY: APPROX_BDAYS_PER_YEAR,
-    WEEKLY: WEEKS_PER_YEAR,
-    MONTHLY: MONTHS_PER_YEAR,
-    YEARLY: 1
-}
-
+from .periods import *
 
 def _adjust_returns(returns, adjustment_factor):
     """
@@ -1157,7 +1138,7 @@ def roll_up_down_capture(returns, factor_returns, **kwargs):
     """
     return roll(returns, factor_returns, function=[up_down_capture], **kwargs)
 
-def roll_max_drawdown(returns, factor_returns, **kwargs):
+def roll_max_drawdown(returns, **kwargs):
     """
     Computes the max_drawdown measure over a rolling window.
 
