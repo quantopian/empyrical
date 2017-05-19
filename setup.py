@@ -68,7 +68,7 @@ requirements = [
 extras_requirements = {
     "dev": [
         "nose==1.3.7",
-        "nose-parameterized==0.5.0",
+        "parameterized==0.6.1",
         "flake8==2.5.1"
     ]
 }
