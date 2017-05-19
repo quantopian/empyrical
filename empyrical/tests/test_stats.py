@@ -641,9 +641,9 @@ class TestStats(TestCase):
         (mixed_returns, 0.0, 0.10859306069076737),
         (mixed_returns, flat_line_1, -0.06515583641446039),
     ])
-    def test_information_ratio(self, returns, factor_returns, expected):
+    def test_excess_sharpe(self, returns, factor_returns, expected):
         assert_almost_equal(
-            self.empyrical.information_ratio(returns, factor_returns),
+            self.empyrical.excess_sharpe(returns, factor_returns),
             expected,
             DECIMAL_PLACES)
 
@@ -654,13 +654,13 @@ class TestStats(TestCase):
         (flat_line_1_tz, pos_line),
         (noise, pos_line)
     ])
-    def test_information_ratio_noisy(self, noise_line, benchmark):
+    def test_excess_sharpe_noisy(self, noise_line, benchmark):
         noisy_returns_1 = noise_line[0:250].add(benchmark[250:], fill_value=0)
         noisy_returns_2 = noise_line[0:500].add(benchmark[500:], fill_value=0)
         noisy_returns_3 = noise_line[0:750].add(benchmark[750:], fill_value=0)
-        ir_1 = self.empyrical.information_ratio(noisy_returns_1, benchmark)
-        ir_2 = self.empyrical.information_ratio(noisy_returns_2, benchmark)
-        ir_3 = self.empyrical.information_ratio(noisy_returns_3, benchmark)
+        ir_1 = self.empyrical.excess_sharpe(noisy_returns_1, benchmark)
+        ir_2 = self.empyrical.excess_sharpe(noisy_returns_2, benchmark)
+        ir_3 = self.empyrical.excess_sharpe(noisy_returns_3, benchmark)
         assert abs(ir_1) < abs(ir_2)
         assert abs(ir_2) < abs(ir_3)
 
@@ -672,16 +672,16 @@ class TestStats(TestCase):
         (neg_line, noise, flat_line_1_tz),
         (neg_line, inv_noise, flat_line_1_tz)
     ])
-    def test_information_ratio_trans(self, returns, add_noise, translation):
-        ir = self.empyrical.information_ratio(
+    def test_excess_sharpe_trans(self, returns, add_noise, translation):
+        ir = self.empyrical.excess_sharpe(
             returns+add_noise,
             returns
         )
-        raised_ir = self.empyrical.information_ratio(
+        raised_ir = self.empyrical.excess_sharpe(
             returns+add_noise+translation,
             returns
         )
-        depressed_ir = self.empyrical.information_ratio(
+        depressed_ir = self.empyrical.excess_sharpe(
             returns+add_noise-translation,
             returns
         )

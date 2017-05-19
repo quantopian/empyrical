@@ -591,7 +591,7 @@ def downside_risk(returns, required_return=0, period=DAILY,
     return dside_risk
 
 
-def information_ratio(returns, factor_returns):
+def excess_sharpe(returns, factor_returns):
     """
     Determines the Information ratio of a strategy.
 
@@ -610,7 +610,7 @@ def information_ratio(returns, factor_returns):
 
     Note
     -----
-    See https://en.wikipedia.org/wiki/information_ratio for more details.
+    See https://en.wikipedia.org/wiki/excess_sharpe for more details.
 
     """
     if len(returns) < 2:
@@ -1081,7 +1081,7 @@ SIMPLE_STAT_FUNCS = [
 ]
 
 FACTOR_STAT_FUNCS = [
-    information_ratio,
+    excess_sharpe,
     alpha,
     beta,
 ]

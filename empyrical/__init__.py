@@ -30,7 +30,7 @@ from .stats import (
     sharpe_ratio,
     sortino_ratio,
     downside_risk,
-    information_ratio,
+    excess_sharpe,
     alpha_beta,
     alpha,
     beta,
