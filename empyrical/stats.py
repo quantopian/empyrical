@@ -21,7 +21,8 @@ from scipy import stats
 from six import iteritems
 
 from .utils import nanmean, nanstd, nanmin, up, down, roll
-from .periods import ANNUALIZATION_FACTORS, DAILY, APPROX_BDAYS_PER_YEAR
+from .periods import ANNUALIZATION_FACTORS, APPROX_BDAYS_PER_YEAR
+from .periods import DAILY, WEEKLY, MONTHLY, YEARLY
 
 
 def _adjust_returns(returns, adjustment_factor):
