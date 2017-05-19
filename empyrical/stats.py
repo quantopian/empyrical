@@ -591,7 +591,8 @@ def excess_sharpe(returns, factor_returns):
 
     Note
     -----
-    See https://en.wikipedia.org/wiki/excess_sharpe for more details.
+    The Excess Sharpe is a simplified Information Ratio that uses
+    tracking error rather than "active risk" as the denominator.
 
     """
     if len(returns) < 2:
