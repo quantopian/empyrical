@@ -724,11 +724,11 @@ def alpha_beta_aligned(returns, factor_returns, risk_free=0.0, period=DAILY,
 
     Returns
     -------
-    float
-        Alpha.
-    float
-        Beta.
-
+    list
+        float
+            Alpha.
+        float
+            Beta.
     """
     b = beta_aligned(returns, factor_returns, risk_free)
     a = alpha_aligned(returns, factor_returns, risk_free, period,
@@ -1031,38 +1031,173 @@ def capture(returns, factor_returns, period=DAILY):
     Returns
     -------
     float, np.nan
-        The CAGR value.
+        The capture ratio.
     """
     return ( annual_return(returns,period=period) /
              annual_return(factor_returns, period=period) )
 
 def up_capture(returns, factor_returns, **kwargs):
+    """
+    Computes the capture ratio for periods when the benchmark return is positive.
 
+    Parameters
+    ----------
+    see documentation for `capture`.
+
+    Returns
+    -------
+    float, np.nan
+    """
     return up(returns, factor_returns, function=[capture], **kwargs)
 
 def down_capture(returns, factor_returns, **kwargs):
+    """
+    Computes the capture ratio for periods when the benchmark return is negative.
+
+    Parameters
+    ----------
+    see documentation for `capture`.
+
+    Returns
+    -------
+    float, np.nan
+    """
     return down(returns, factor_returns, function=[capture], **kwargs)
 
 def up_down_capture(returns, factor_returns, **kwargs):
+    """
+    Computes the ratio of up_capture to down_capture.
+
+    Parameters
+    ----------
+    see documentation for `capture`.
+
+    Returns
+    -------
+    float
+        the updown capture ratio
+    """
     return up_capture(*args, **kwargs) / down_capture(*args, **kwargs)
 
 def up_alpha_beta(returns, factor_returns, **kwargs):
+    """
+    Computes alpha and beta for periods when the benchmark return is positive.
+
+    Parameters
+    ----------
+    see documentation for `alpha_beta`.
+
+    Returns
+    -------
+    list
+        float
+            Alpha.
+        float
+            Beta.
+    """
     return  up(returns, factor_returns, function=[alpha_beta], **kwargs)
 
 def down_alpha_beta(returns, factor_returns, **kwargs):
+    """
+    Computes alpha and beta for periods when the benchmark return is negative.
+
+    Parameters
+    ----------
+    see documentation for `alpha_beta`.
+
+    Returns
+    -------
+    list
+        float
+            Alpha.
+        float
+            Beta.
+    """
     return down(returns, factor_returns, function=[alpha_beta], **kwargs)
 
 def roll_up_capture(returns, factor_returns, **kwargs):
+    """
+    Computes the up capture measure over a rolling window.
+
+    Parameters
+    ----------
+    see documentation for `capture` (pass all args, kwargs required)
+
+    window : int, required
+        Size of the rolling window in terms of the periodicity of the data.
+        - e.g window = 60, represents a rolling 60 day window.
+    """
     return roll(returns, factor_returns, function=[up, capture], **kwargs)
 
 def roll_down_capture(returns, factor_returns, **kwargs):
+    """
+    Computes the down capture measure over a rolling window.
+
+    Parameters
+    ----------
+    see documentation for `capture` (pass all args, kwargs required)
+
+    window : int, required
+        Size of the rolling window in terms of the periodicity of the data.
+        - e.g window = 60, represents a rolling 60 day window.
+    """
     return roll(returns, factor_returns, function=[down, capture], **kwargs)
 
 def roll_up_down_capture(returns, factor_returns, **kwargs):
+    """
+    Computes the up/down capture measure over a rolling window.
+
+    Parameters
+    ----------
+    see documentation for `capture` (pass all args, kwargs required)
+
+    window : int, required
+        Size of the rolling window in terms of the periodicity of the data.
+        - e.g window = 60, represents a rolling 60 day window.
+    """
     return roll(returns, factor_returns, function=[up_down_capture], **kwargs)
 
 def roll_max_drawdown(returns, factor_returns, **kwargs):
+    """
+    Computes the max_drawdown measure over a rolling window.
+
+    Parameters
+    ----------
+    see documentation for `max_drawdown` (pass all args, kwargs required)
+
+    window : int, required
+        Size of the rolling window in terms of the periodicity of the data.
+        - e.g window = 60, represents a rolling 60 day window.
+    """
     return roll(returns, function=[max_drawdown], **kwargs)
+
+def roll_alpha_beta(returns, factor_returns, **kwargs):
+    """
+    Computes the alpha_beta measure over a rolling window.
+
+    Parameters
+    ----------
+    see documentation for `alpha_beta` (pass all args, kwargs required)
+
+    window : int, required
+        Size of the rolling window in terms of the periodicity of the data.
+        - e.g window = 60, represents a rolling 60 day window.
+    """
+    return roll(returns, factor_returns, function=[alpha_beta], **kwargs)
+
+def roll_sharpe_ratio(returns, **kwargs):
+    """
+    Computes the sharpe ratio measure over a rolling window.
+
+    Parameters
+    ----------
+    see documentation for `sharpe_ratio` (pass all args, kwargs required)
+
+    window : int, required
+        Size of the rolling window in terms of the periodicity of the data.
+        - e.g window = 60, represents a rolling 60 day window.
+    """
+    return roll(returns, function=[sharpe_ratio], **kwargs)
 
 SIMPLE_STAT_FUNCS = [
     cum_returns_final,
