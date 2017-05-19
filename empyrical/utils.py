@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import numpy as np
+import pandas as pd
 
 try:
     # fast versions
@@ -24,8 +26,6 @@ try:
     nanargmax = bn.nanargmax
     nanargmin = bn.nanargmin
 except ImportError:
-    # slower numpy
-    import numpy as np
     nanmean = np.nanmean
     nanstd = np.nanstd
     nansum = np.nansum
@@ -34,27 +34,28 @@ except ImportError:
     nanargmax = np.nanargmax
     nanargmin = np.nanargmin
 
-import pandas as pd
-
 def roll(*args, **kwargs):
-    func, kwargs = _pop_kwargs('function', kwargs)
+    func, kwargs = _pop_kwargs('functions', kwargs)
     window = kwargs.pop('window')
-    data = {}
-    for i in range(window, args[0].index.size):
-        rets = [s.iloc[i-window:i] for s in args]
-        data[args[0].index[i]] = func(*rets, **kwargs)
-    if isinstance(args[0], pd.Series):
-        return pd.Series(data)
-    return pd.DataFrame(data)
+    if len(args) > 2:
+        raise ValueError("Cannot pass more than 2 return sets")
+
+    if len(args) == 2:
+        if type(arg[0]) != type(arg[0]):
+            raise ValueError("The two returns arguments are not the same.")
+
+    if isinstance(args[0], np.ndarray):
+        return _roll_ndarray(func, window, *args, **kwargs)
+    return _roll_pandas(func, window, *args, **kwargs)
 
 def up(returns, factor_returns, **kwargs):
-    func, kwargs = _pop_kwargs('function', kwargs)
+    func, kwargs = _pop_kwargs('functions', kwargs)
     returns = returns[factor_returns > 0]
     factor_returns = factor_returns[factor_returns > 0]
     return func(returns, factor_returns, **kwargs)
 
 def down(returns, factor_returns, **kwargs):
-    func, kwargs = _pop_kwargs('function', kwargs)
+    func, kwargs = _pop_kwargs('functions', kwargs)
     returns = returns[factor_returns < 0]
     factor_returns = factor_returns[factor_returns < 0]
     return func(returns, factor_returns, **kwargs)
@@ -65,3 +66,17 @@ def _pop_kwargs(sym, kwargs):
     if funcs[1:]:
         kwargs[sym] = funcs[1:]
     return func, kwargs
+
+def _roll_ndarray(func, window, *args, **kwargs):
+    data = []
+    for i in range(window, len(args[0])):
+        rets = [s[i-window:i] for s in args]
+        data.append(func(*rets, **kwargs))
+    return np.array(data)
+
+def _roll_pandas(func, window, *args, **kwargs):
+    data = {}
+    for i in range(window, len(args[0])):
+        rets = [s.iloc[i-window:i] for s in args]
+        data[args[0].index[i]] = func(*rets, **kwargs)
+    return pd.Series(data)
