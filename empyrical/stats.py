@@ -1206,7 +1206,8 @@ SIMPLE_STAT_FUNCS = [
     stats.skew,
     stats.kurtosis,
     tail_ratio,
-    cagr
+    cagr,
+    capture
 ]
 
 FACTOR_STAT_FUNCS = [
