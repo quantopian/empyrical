@@ -34,6 +34,7 @@ except ImportError:
     nanargmax = np.nanargmax
     nanargmin = np.nanargmin
 
+
 def roll(*args, **kwargs):
     func, kwargs = _pop_kwargs('functions', kwargs)
     window = kwargs.pop('window')
@@ -41,12 +42,13 @@ def roll(*args, **kwargs):
         raise ValueError("Cannot pass more than 2 return sets")
 
     if len(args) == 2:
-        if type(arg[0]) != type(arg[0]):
+        if isinstance(args[0], type(args[1])):
             raise ValueError("The two returns arguments are not the same.")
 
     if isinstance(args[0], np.ndarray):
         return _roll_ndarray(func, window, *args, **kwargs)
     return _roll_pandas(func, window, *args, **kwargs)
+
 
 def up(returns, factor_returns, **kwargs):
     func, kwargs = _pop_kwargs('functions', kwargs)
@@ -54,11 +56,13 @@ def up(returns, factor_returns, **kwargs):
     factor_returns = factor_returns[factor_returns > 0]
     return func(returns, factor_returns, **kwargs)
 
+
 def down(returns, factor_returns, **kwargs):
     func, kwargs = _pop_kwargs('functions', kwargs)
     returns = returns[factor_returns < 0]
     factor_returns = factor_returns[factor_returns < 0]
     return func(returns, factor_returns, **kwargs)
+
 
 def _pop_kwargs(sym, kwargs):
     funcs = kwargs.pop(sym)
@@ -67,12 +71,14 @@ def _pop_kwargs(sym, kwargs):
         kwargs[sym] = funcs[1:]
     return func, kwargs
 
+
 def _roll_ndarray(func, window, *args, **kwargs):
     data = []
     for i in range(window, len(args[0])):
         rets = [s[i-window:i] for s in args]
         data.append(func(*rets, **kwargs))
     return np.array(data)
+
 
 def _roll_pandas(func, window, *args, **kwargs):
     data = {}

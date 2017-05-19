@@ -12,7 +12,6 @@ import pandas as pd
 from pandas.core.generic import NDFrame
 from scipy import stats
 from six import iteritems, wraps
-from empyrical.periods import *
 
 import empyrical
 
@@ -939,10 +938,10 @@ class TestStats(TestCase):
 
     # Regression tests for CAGR.
     @parameterized.expand([
-        (empty_returns, DAILY, np.nan),
-        (one_return, DAILY, 11.274002099240244),
-        (mixed_returns, DAILY, 1.9135925373194231),
-        (flat_line_1_tz, DAILY, 11.274002099240256),
+        (empty_returns, empyrical.DAILY, np.nan),
+        (one_return, empyrical.DAILY, 11.274002099240244),
+        (mixed_returns, empyrical.DAILY, 1.9135925373194231),
+        (flat_line_1_tz, empyrical.DAILY, 11.274002099240256),
         (pd.Series(np.array(
             [3., 3., 3.])/100,
             index=pd.date_range('2000-1-30', periods=3, freq='A')
@@ -1002,10 +1001,10 @@ class TestStats(TestCase):
     ])
     def test_roll_max_drawdown(self, returns, window, expected):
         test = self.empyrical.roll_max_drawdown(returns, window=window)
-        assert_almost_equal( np.asarray(test), np.asarray(expected), 4)
+        assert_almost_equal(np.asarray(test), np.asarray(expected), 4)
 
     @parameterized.expand([
-        (empty_returns,empty_returns, np.nan),
+        (empty_returns, empty_returns, np.nan),
         (one_return, one_return, 1.),
         (mixed_returns, mixed_returns, 1.),
         (all_negative_returns, mixed_returns, -0.52257643222960259)
@@ -1017,7 +1016,7 @@ class TestStats(TestCase):
             DECIMAL_PLACES)
 
     @parameterized.expand([
-        (empty_returns,empty_returns, np.nan),
+        (empty_returns, empty_returns, np.nan),
         (one_return, one_return, np.nan),
         (mixed_returns, mixed_returns, 1.),
         (all_negative_returns, mixed_returns, 0.99956025703798634)
@@ -1027,7 +1026,6 @@ class TestStats(TestCase):
             self.empyrical.down_capture(returns, factor_returns),
             expected,
             DECIMAL_PLACES)
-
 
     @property
     def empyrical(self):
