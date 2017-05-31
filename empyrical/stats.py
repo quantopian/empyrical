@@ -1017,6 +1017,11 @@ def capture(returns, factor_returns, period=DAILY):
     -------
     float, np.nan
         The capture ratio.
+
+    Notes
+    -----
+    See http://www.investopedia.com/terms/u/up-market-capture-ratio.asp for
+    details.
     """
     return (annual_return(returns, period=period) /
             annual_return(factor_returns, period=period))
@@ -1033,6 +1038,11 @@ def up_capture(returns, factor_returns, **kwargs):
     Returns
     -------
     float, np.nan
+
+    Notes
+    -----
+    See http://www.investopedia.com/terms/u/up-market-capture-ratio.asp for
+    more information.
     """
     return up(returns, factor_returns, functions=[capture], **kwargs)
 
@@ -1048,6 +1058,11 @@ def down_capture(returns, factor_returns, **kwargs):
     Returns
     -------
     float, np.nan
+
+    Note
+    ----
+    See http://www.investopedia.com/terms/d/down-market-capture-ratio.asp for
+    more information.
     """
     return down(returns, factor_returns, functions=[capture], **kwargs)
 
@@ -1214,12 +1229,14 @@ SIMPLE_STAT_FUNCS = [
     stats.skew,
     stats.kurtosis,
     tail_ratio,
-    cagr,
-    capture
+    cagr
 ]
 
 FACTOR_STAT_FUNCS = [
     excess_sharpe,
     alpha,
     beta,
+    capture,
+    up_capture,
+    down_capture
 ]
