@@ -14,26 +14,15 @@
 # limitations under the License.
 import numpy as np
 import pandas as pd
+import bottleneck as bn
 
-try:
-    # fast versions
-    import bottleneck as bn
-    nanmean = bn.nanmean
-    nanstd = bn.nanstd
-    nansum = bn.nansum
-    nanmax = bn.nanmax
-    nanmin = bn.nanmin
-    nanargmax = bn.nanargmax
-    nanargmin = bn.nanargmin
-except ImportError:
-    nanmean = np.nanmean
-    nanstd = np.nanstd
-    nansum = np.nansum
-    nanmax = np.nanmax
-    nanmin = np.nanmin
-    nanargmax = np.nanargmax
-    nanargmin = np.nanargmin
-
+nanmean = bn.nanmean
+nanstd = bn.nanstd
+nansum = bn.nansum
+nanmax = bn.nanmax
+nanmin = bn.nanmin
+nanargmax = bn.nanargmax
+nanargmin = bn.nanargmin
 
 def roll(*args, **kwargs):
     func, kwargs = _pop_kwargs('functions', kwargs)
