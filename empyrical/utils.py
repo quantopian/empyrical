@@ -25,6 +25,34 @@ nanargmax = bn.nanargmax
 nanargmin = bn.nanargmin
 
 def roll(*args, **kwargs):
+    """
+    Calculates a given statistic across a rolling time period.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    factor_returns (optional): float / series
+        Benchmark return to compare returns against.
+    functions (keyword): list
+        the list of functions to run for each rolling window.
+    window (keyword): int
+        the number of periods included in each calculation.
+    (other keywords): other keywords that are required to be passed to the
+        functions in the 'functions' argument may also be passed in.
+
+    Returns
+    -------
+    np.ndarray, pd.Series
+        depends on input type
+        ndarray(s) ==> ndarray
+        Series(s) ==> pd.Series
+
+        A Series or ndarray of the results of the stat across the rolling
+        window.
+
+    """
     func, kwargs = _pop_kwargs('functions', kwargs)
     window = kwargs.pop('window')
     if len(args) > 2:
@@ -40,6 +68,25 @@ def roll(*args, **kwargs):
 
 
 def up(returns, factor_returns, **kwargs):
+    """
+    Calculates a given statistic filtering only positive factor return periods.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    factor_returns (optional): float / series
+        Benchmark return to compare returns against.
+    functions (keyword): list
+        the list of functions to run for each rolling window.
+    (other keywords): other keywords that are required to be passed to the
+        functions in the 'functions' argument may also be passed in.
+
+    Returns
+    -------
+    Same as the return of the final function in 'functions'
+    """
     func, kwargs = _pop_kwargs('functions', kwargs)
     returns = returns[factor_returns > 0]
     factor_returns = factor_returns[factor_returns > 0]
@@ -47,6 +94,25 @@ def up(returns, factor_returns, **kwargs):
 
 
 def down(returns, factor_returns, **kwargs):
+    """
+    Calculates a given statistic filtering only negative factor return periods.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    factor_returns (optional): float / series
+        Benchmark return to compare returns against.
+    functions (keyword): list
+        the list of functions to run for each rolling window.
+    (other keywords): other keywords that are required to be passed to the
+        functions in the 'functions' argument may also be passed in.
+
+    Returns
+    -------
+    Same as the return of the final function in 'functions'
+    """
     func, kwargs = _pop_kwargs('functions', kwargs)
     returns = returns[factor_returns < 0]
     factor_returns = factor_returns[factor_returns < 0]
