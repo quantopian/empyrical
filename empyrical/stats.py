@@ -708,11 +708,10 @@ def alpha_beta_aligned(returns, factor_returns, risk_free=0.0, period=DAILY,
 
     Returns
     -------
-    list
-        float
-            Alpha.
-        float
-            Beta.
+    float
+        Alpha.
+    float
+        Beta.
     """
     b = beta_aligned(returns, factor_returns, risk_free)
     a = alpha_aligned(returns, factor_returns, risk_free, period,
@@ -1094,11 +1093,10 @@ def up_alpha_beta(returns, factor_returns, **kwargs):
 
     Returns
     -------
-    list
-        float
-            Alpha.
-        float
-            Beta.
+    float
+        Alpha.
+    float
+        Beta.
     """
     return up(returns, factor_returns, functions=[alpha_beta], **kwargs)
 
@@ -1113,11 +1111,10 @@ def down_alpha_beta(returns, factor_returns, **kwargs):
 
     Returns
     -------
-    list
-        float
-            Alpha.
-        float
-            Beta.
+    float
+        Alpha.
+    float
+        Beta.
     """
     return down(returns, factor_returns, functions=[alpha_beta], **kwargs)
 
