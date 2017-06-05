@@ -14,6 +14,7 @@ from scipy import stats
 from six import iteritems, wraps
 
 import empyrical
+import empyrical.utils as emutils
 
 DECIMAL_PLACES = 8
 
@@ -1084,6 +1085,73 @@ class TestStatsIntIndex(TestStats):
             (pd.Series, float),
             lambda obj: type(obj)(obj.values, index=np.arange(len(obj))),
         )
+
+
+class TestHelpers(TestCase):
+    """
+    Tests for helper methods and utils.
+    """
+
+    def setUp(self):
+
+        self.ser_length = 120
+        self.window = 12
+
+        self.returns = pd.Series(
+            np.random.randn(1, 120)[0]/100.,
+            index=pd.date_range('2000-1-30', periods=120, freq='M'))
+
+        self.factor_returns = pd.Series(
+            np.random.randn(1, 120)[0]/100.,
+            index=pd.date_range('2000-1-30', periods=120, freq='M'))
+
+    def test_roll_pandas(self):
+        res = emutils.roll(self.returns,
+                           self.factor_returns,
+                           window=12,
+                           function=empyrical.alpha_aligned)
+
+        self.assertTrue(res.size == self.ser_length - self.window)
+
+    def test_roll_ndarray(self):
+        res = emutils.roll(self.returns.values,
+                           self.factor_returns.values,
+                           window=12,
+                           function=empyrical.alpha_aligned)
+
+        self.assertTrue(len(res == self.ser_length - self.window))
+
+    def test_down(self):
+        pd_res = emutils.down(self.returns, self.factor_returns,
+                              function=empyrical.capture)
+        np_res = emutils.down(self.returns.values, self.factor_returns.values,
+                              function=empyrical.capture)
+
+        self.assertTrue(isinstance(pd_res, float))
+        assert_almost_equal(pd_res, np_res, DECIMAL_PLACES)
+
+    def test_up(self):
+        pd_res = emutils.up(self.returns, self.factor_returns,
+                            function=empyrical.capture)
+        np_res = emutils.up(self.returns.values, self.factor_returns.values,
+                            function=empyrical.capture)
+
+        self.assertTrue(isinstance(pd_res, float))
+        assert_almost_equal(pd_res, np_res, DECIMAL_PLACES)
+
+    def test_roll_bad_types(self):
+        with self.assertRaises(ValueError):
+            emutils.roll(self.returns.values,
+                         self.factor_returns,
+                         window=12,
+                         function=empyrical.max_drawdown)
+
+    def test_roll_max_window(self):
+        res = emutils.roll(self.returns,
+                           self.factor_returns,
+                           window=self.ser_length + 100,
+                           function=empyrical.max_drawdown)
+        self.assertTrue(res.size == 0)
 
 
 class Test2DStats(TestCase):
