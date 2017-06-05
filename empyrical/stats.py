@@ -1043,7 +1043,7 @@ def up_capture(returns, factor_returns, **kwargs):
     See http://www.investopedia.com/terms/u/up-market-capture-ratio.asp for
     more information.
     """
-    return up(returns, factor_returns, functions=[capture], **kwargs)
+    return up(returns, factor_returns, function=capture, **kwargs)
 
 
 def down_capture(returns, factor_returns, **kwargs):
@@ -1063,7 +1063,7 @@ def down_capture(returns, factor_returns, **kwargs):
     See http://www.investopedia.com/terms/d/down-market-capture-ratio.asp for
     more information.
     """
-    return down(returns, factor_returns, functions=[capture], **kwargs)
+    return down(returns, factor_returns, function=capture, **kwargs)
 
 
 def up_down_capture(returns, factor_returns, **kwargs):
@@ -1098,7 +1098,7 @@ def up_alpha_beta(returns, factor_returns, **kwargs):
     float
         Beta.
     """
-    return up(returns, factor_returns, functions=[alpha_beta], **kwargs)
+    return up(returns, factor_returns, function=alpha_beta, **kwargs)
 
 
 def down_alpha_beta(returns, factor_returns, **kwargs):
@@ -1116,7 +1116,7 @@ def down_alpha_beta(returns, factor_returns, **kwargs):
     float
         Beta.
     """
-    return down(returns, factor_returns, functions=[alpha_beta], **kwargs)
+    return down(returns, factor_returns, function=alpha_beta, **kwargs)
 
 
 def roll_up_capture(returns, factor_returns, window=10, **kwargs):
@@ -1131,8 +1131,8 @@ def roll_up_capture(returns, factor_returns, window=10, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
-    return roll(returns, factor_returns, window=window, functions=[
-        up, capture], **kwargs)
+    return roll(returns, factor_returns, window=window, functions=up_capture,
+                **kwargs)
 
 
 def roll_down_capture(returns, factor_returns, window=10, **kwargs):
@@ -1147,8 +1147,8 @@ def roll_down_capture(returns, factor_returns, window=10, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
-    return roll(returns, factor_returns, window=window, functions=[
-        down, capture], **kwargs)
+    return roll(returns, factor_returns, window=window, function=down_capture,
+                **kwargs)
 
 
 def roll_up_down_capture(returns, factor_returns, window=10, **kwargs):
@@ -1163,8 +1163,8 @@ def roll_up_down_capture(returns, factor_returns, window=10, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
-    return roll(returns, factor_returns, window=window, functions=[
-        up_down_capture], **kwargs)
+    return roll(returns, factor_returns, window=window,
+                function=up_down_capture, **kwargs)
 
 
 def roll_max_drawdown(returns, window=10, **kwargs):
@@ -1179,7 +1179,7 @@ def roll_max_drawdown(returns, window=10, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
-    return roll(returns, window=window, functions=[max_drawdown], **kwargs)
+    return roll(returns, window=window, function=max_drawdown, **kwargs)
 
 
 def roll_alpha_beta(returns, factor_returns, window=10, **kwargs):
@@ -1194,8 +1194,8 @@ def roll_alpha_beta(returns, factor_returns, window=10, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
-    return roll(returns, factor_returns, window=window, functions=[
-        alpha_beta], **kwargs)
+    return roll(returns, factor_returns, window=window, function=alpha_beta,
+                **kwargs)
 
 
 def roll_sharpe_ratio(returns, window=10, **kwargs):
@@ -1210,7 +1210,7 @@ def roll_sharpe_ratio(returns, window=10, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
-    return roll(returns, window=window, functions=[sharpe_ratio], **kwargs)
+    return roll(returns, window=window, function=sharpe_ratio, **kwargs)
 
 
 SIMPLE_STAT_FUNCS = [

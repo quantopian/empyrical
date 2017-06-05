@@ -86,7 +86,7 @@ def up(returns, factor_returns, **kwargs):
 
     Returns
     -------
-    Same as the return of the final function in 'functions'
+    Same as the return of the function
     """
     func = kwargs.pop('function')
     returns = returns[factor_returns > 0]
