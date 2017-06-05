@@ -1131,7 +1131,7 @@ def roll_up_capture(returns, factor_returns, window=10, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
-    return roll(returns, factor_returns, window=window, functions=up_capture,
+    return roll(returns, factor_returns, window=window, function=up_capture,
                 **kwargs)
 
 
