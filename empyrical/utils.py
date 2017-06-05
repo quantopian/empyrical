@@ -24,6 +24,7 @@ nanmin = bn.nanmin
 nanargmax = bn.nanargmax
 nanargmin = bn.nanargmin
 
+
 def roll(*args, **kwargs):
     """
     Calculates a given statistic across a rolling time period.
@@ -35,12 +36,12 @@ def roll(*args, **kwargs):
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     factor_returns (optional): float / series
         Benchmark return to compare returns against.
-    functions (keyword): list
-        the list of functions to run for each rolling window.
+    function:
+        the function to run for each rolling window.
     window (keyword): int
         the number of periods included in each calculation.
     (other keywords): other keywords that are required to be passed to the
-        functions in the 'functions' argument may also be passed in.
+        function in the 'function' argument may also be passed in.
 
     Returns
     -------
@@ -53,13 +54,13 @@ def roll(*args, **kwargs):
         window.
 
     """
-    func, kwargs = _pop_kwargs('functions', kwargs)
+    func = kwargs.pop('function')
     window = kwargs.pop('window')
     if len(args) > 2:
         raise ValueError("Cannot pass more than 2 return sets")
 
     if len(args) == 2:
-        if isinstance(args[0], type(args[1])):
+        if not isinstance(args[0], type(args[1])):
             raise ValueError("The two returns arguments are not the same.")
 
     if isinstance(args[0], np.ndarray):
@@ -78,16 +79,16 @@ def up(returns, factor_returns, **kwargs):
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     factor_returns (optional): float / series
         Benchmark return to compare returns against.
-    functions (keyword): list
-        the list of functions to run for each rolling window.
+    function:
+        the function to run for each rolling window.
     (other keywords): other keywords that are required to be passed to the
-        functions in the 'functions' argument may also be passed in.
+        function in the 'function' argument may also be passed in.
 
     Returns
     -------
     Same as the return of the final function in 'functions'
     """
-    func, kwargs = _pop_kwargs('functions', kwargs)
+    func = kwargs.pop('function')
     returns = returns[factor_returns > 0]
     factor_returns = factor_returns[factor_returns > 0]
     return func(returns, factor_returns, **kwargs)
@@ -104,27 +105,19 @@ def down(returns, factor_returns, **kwargs):
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     factor_returns (optional): float / series
         Benchmark return to compare returns against.
-    functions (keyword): list
-        the list of functions to run for each rolling window.
+    function:
+        the function to run for each rolling window.
     (other keywords): other keywords that are required to be passed to the
-        functions in the 'functions' argument may also be passed in.
+        function in the 'function' argument may also be passed in.
 
     Returns
     -------
-    Same as the return of the final function in 'functions'
+    Same as the return of the 'function'
     """
-    func, kwargs = _pop_kwargs('functions', kwargs)
+    func = kwargs.pop('function')
     returns = returns[factor_returns < 0]
     factor_returns = factor_returns[factor_returns < 0]
     return func(returns, factor_returns, **kwargs)
-
-
-def _pop_kwargs(sym, kwargs):
-    funcs = kwargs.pop(sym)
-    func = funcs[0]
-    if funcs[1:]:
-        kwargs[sym] = funcs[1:]
-    return func, kwargs
 
 
 def _roll_ndarray(func, window, *args, **kwargs):
