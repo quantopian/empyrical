@@ -1002,7 +1002,21 @@ class TestStats(TestCase):
     ])
     def test_roll_max_drawdown(self, returns, window, expected):
         test = self.empyrical.roll_max_drawdown(returns, window=window)
-        assert_almost_equal(np.asarray(test), np.asarray(expected), 4)
+        assert_almost_equal(
+            np.asarray(test),
+            np.asarray(expected),
+            4)
+
+    @parameterized.expand([
+        (empty_returns, 6, []),
+        (negative_returns, 6, [-0.2282, -0.2745, -0.2899])
+    ])
+    def test_roll_sharpe_ratio(self, returns, window, expected):
+        test = self.empyrical.roll_sharpe_ratio(returns, window=window)
+        assert_almost_equal(
+            np.asarray(test),
+            np.asarray(expected),
+            DECIMAL_PLACES)
 
     @parameterized.expand([
         (empty_returns, empty_returns, np.nan),
@@ -1027,6 +1041,78 @@ class TestStats(TestCase):
             self.empyrical.down_capture(returns, factor_returns),
             expected,
             DECIMAL_PLACES)
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, np.nan),
+        (one_return, one_return, 1.),
+        (mixed_returns, mixed_returns, 1.),
+        (all_negative_returns, mixed_returns, -0.52257643222960259)
+    ])
+    def test_roll_alpha_beta(self, returns, factor_returns, window, expected):
+        pass
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, np.nan),
+        (one_return, one_return, 1.),
+        (mixed_returns, mixed_returns, 1.),
+        (all_negative_returns, mixed_returns, -0.52257643222960259)
+    ])
+    def test_roll_up_down_capture(self, returns, factor_returns, window, expected):
+        pass
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, np.nan),
+        (one_return, one_return, 1.),
+        (mixed_returns, mixed_returns, 1.),
+        (all_negative_returns, mixed_returns, -0.52257643222960259)
+    ])
+    def test_roll_down_capture(self, returns, factor_returns, window, expected):
+        pass
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, np.nan),
+        (one_return, one_return, 1.),
+        (mixed_returns, mixed_returns, 1.),
+        (all_negative_returns, mixed_returns, -0.52257643222960259)
+    ])
+    def test_roll_up_capture(self, returns, factor_returns, window, expected):
+        pass
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, np.nan),
+        (one_return, one_return, 1.),
+        (mixed_returns, mixed_returns, 1.),
+        (all_negative_returns, mixed_returns, -0.52257643222960259)
+    ])
+    def test_down_alpha_beta(self, returns, factor_returns, expected):
+        pass
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, np.nan),
+        (one_return, one_return, 1.),
+        (mixed_returns, mixed_returns, 1.),
+        (all_negative_returns, mixed_returns, -0.52257643222960259)
+    ])
+    def test_up_alpha_beta(self, returns, factor_returns, expected):
+        pass
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, np.nan),
+        (one_return, one_return, 1.),
+        (mixed_returns, mixed_returns, 1.),
+        (all_negative_returns, mixed_returns, -0.52257643222960259)
+    ])
+    def test_up_down_capture(self, returns, factor_returns, expected):
+        pass
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, np.nan),
+        (one_return, one_return, 1.),
+        (mixed_returns, mixed_returns, 1.),
+        (all_negative_returns, mixed_returns, -0.52257643222960259)
+    ])
+    def test_up_capture(self, returns, factor_returns, expected):
+        pass
 
     @property
     def empyrical(self):
