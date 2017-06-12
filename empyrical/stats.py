@@ -18,8 +18,9 @@ from __future__ import division
 import pandas as pd
 import numpy as np
 from scipy import stats
+from six import iteritems
 
-from empyrical.utils import nanmean
+from .utils import nanmean, nanstd, nanmin
 
 
 APPROX_BDAYS_PER_MONTH = 21
@@ -43,20 +44,20 @@ ANNUALIZATION_FACTORS = {
 
 def _adjust_returns(returns, adjustment_factor):
     """
-    Returns a new pd.Series adjusted by adjustment_factor. Optimizes for the
-    case of adjustment_factor being 0
+    Returns the returns series adjusted by adjustment_factor. Optimizes for the
+    case of adjustment_factor being 0 by returning returns itself, not a copy!
 
     Parameters
     ----------
-    returns : pd.Series
-    adjustment_factor : series / float
+    returns : pd.Series or np.ndarray
+    adjustment_factor : pd.Series or np.ndarray or float or int
 
     Returns
     -------
-    pd.Series
+    pd.Series or np.ndarray
     """
     if isinstance(adjustment_factor, (float, int)) and adjustment_factor == 0:
-        return returns.copy()
+        return returns
     return returns - adjustment_factor
 
 
@@ -105,7 +106,7 @@ def cum_returns(returns, starting_value=0):
 
     Parameters
     ----------
-    returns : pd.Series
+    returns : pd.Series, np.ndarray, or pd.DataFrame
         Returns of the strategy as a percentage, noncumulative.
          - Time series with decimal returns.
          - Example:
@@ -113,12 +114,14 @@ def cum_returns(returns, starting_value=0):
             2015-07-17    0.045350
             2015-07-20    0.030957
             2015-07-21    0.004902.
+        - Also accepts two dimensional data. In this case,
+            each column is cumulated.
     starting_value : float, optional
        The starting returns.
 
     Returns
     -------
-    pandas.Series
+    pd.Series, np.ndarray, or pd.DataFrame
         Series of cumulative returns.
 
     Notes
@@ -135,18 +138,48 @@ def cum_returns(returns, starting_value=0):
     # to use.
 
     if len(returns) < 1:
-        return np.nan
+        return type(returns)([])
 
-    if pd.isnull(returns.iloc[0]):
+    if np.any(np.isnan(returns)):
         returns = returns.copy()
-        returns.iloc[0] = 0.
+        returns[np.isnan(returns)] = 0.
 
-    df_cum = np.exp(np.log1p(returns).cumsum())
+    df_cum = (returns + 1).cumprod(axis=0)
 
     if starting_value == 0:
         return df_cum - 1
     else:
         return df_cum * starting_value
+
+
+def cum_returns_final(returns, starting_value=0):
+    """
+    Compute total returns from simple returns.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Returns of the strategy as a percentage, noncumulative.
+         - Time series with decimal returns.
+         - Example:
+            2015-07-16    -0.012143
+            2015-07-17    0.045350
+            2015-07-20    0.030957
+            2015-07-21    0.004902.
+    starting_value : float, optional
+       The starting returns.
+
+    Returns
+    -------
+    float
+
+    """
+
+    if len(returns) == 0:
+        return np.nan
+
+    return cum_returns(np.asanyarray(returns),
+                       starting_value=starting_value)[-1]
 
 
 def aggregate_returns(returns, convert_to):
@@ -168,7 +201,7 @@ def aggregate_returns(returns, convert_to):
     """
 
     def cumulate_returns(x):
-        return cum_returns(x)[-1]
+        return cum_returns(x).iloc[-1]
 
     if convert_to == WEEKLY:
         grouping = [lambda x: x.year, lambda x: x.isocalendar()[1]]
@@ -190,7 +223,7 @@ def max_drawdown(returns):
 
     Parameters
     ----------
-    returns : pd.Series
+    returns : pd.Series or np.ndarray
         Daily returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
 
@@ -208,8 +241,8 @@ def max_drawdown(returns):
         return np.nan
 
     cumulative = cum_returns(returns, starting_value=100)
-    max_return = cumulative.cummax()
-    return cumulative.sub(max_return).div(max_return).min()
+    max_return = np.fmax.accumulate(cumulative)
+    return nanmin((cumulative - max_return) / max_return)
 
 
 def annual_return(returns, period=DAILY, annualization=None):
@@ -217,7 +250,7 @@ def annual_return(returns, period=DAILY, annualization=None):
 
     Parameters
     ----------
-    returns : pd.Series
+    returns : pd.Series or np.ndarray
         Periodic returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     period : str, optional
@@ -246,9 +279,11 @@ def annual_return(returns, period=DAILY, annualization=None):
 
     num_years = float(len(returns)) / ann_factor
     start_value = 100
-    end_value = cum_returns(returns, starting_value=start_value).iloc[-1]
-    total_return = (end_value - start_value) / start_value
-    annual_return = (1. + total_return) ** (1. / num_years) - 1
+    # Pass array to ensure index -1 looks up successfully.
+    end_value = cum_returns(np.asanyarray(returns),
+                            starting_value=start_value)[-1]
+    cum_returns_final = (end_value - start_value) / start_value
+    annual_return = (1. + cum_returns_final) ** (1. / num_years) - 1
 
     return annual_return
 
@@ -260,7 +295,7 @@ def annual_volatility(returns, period=DAILY, alpha=2.0,
 
     Parameters
     ----------
-    returns : pd.Series
+    returns : pd.Series or np.ndarray
         Periodic returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     period : str, optional
@@ -288,7 +323,7 @@ def annual_volatility(returns, period=DAILY, alpha=2.0,
 
     ann_factor = annualization_factor(period, annualization)
 
-    volatility = returns.std() * (ann_factor ** (1.0 / alpha))
+    volatility = nanstd(returns, ddof=1) * (ann_factor ** (1.0 / alpha))
 
     return volatility
 
@@ -299,7 +334,7 @@ def calmar_ratio(returns, period=DAILY, annualization=None):
 
     Parameters
     ----------
-    returns : pd.Series
+    returns : pd.Series or np.ndarray
         Daily returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     period : str, optional
@@ -348,7 +383,7 @@ def omega_ratio(returns, risk_free=0.0, required_return=0.0,
 
     Parameters
     ----------
-    returns : pd.Series
+    returns : pd.Series or np.ndarray
         Daily returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     risk_free : int, float
@@ -402,7 +437,7 @@ def sharpe_ratio(returns, risk_free=0, period=DAILY, annualization=None):
 
     Parameters
     ----------
-    returns : pd.Series
+    returns : pd.Series or np.ndarray
         Daily returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     risk_free : int, float
@@ -423,8 +458,9 @@ def sharpe_ratio(returns, risk_free=0, period=DAILY, annualization=None):
     -------
     float
         Sharpe ratio.
-    np.nan
-        If insufficient length of returns or if if adjusted returns are 0.
+
+        np.nan
+            If insufficient length of returns or if if adjusted returns are 0.
 
     Note
     -----
@@ -432,12 +468,13 @@ def sharpe_ratio(returns, risk_free=0, period=DAILY, annualization=None):
 
     """
 
-    if len(returns) < 1:
+    if len(returns) < 2:
         return np.nan
 
     ann_factor = annualization_factor(period, annualization)
 
-    returns_risk_adj = _adjust_returns(returns, risk_free).dropna()
+    returns_risk_adj = np.asanyarray(_adjust_returns(returns, risk_free))
+    returns_risk_adj = returns_risk_adj[~np.isnan(returns_risk_adj)]
 
     if np.std(returns_risk_adj, ddof=1) == 0:
         return np.nan
@@ -453,7 +490,7 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
 
     Parameters
     ----------
-    returns : pd.Series or pd.DataFrame
+    returns : pd.Series or np.ndarray or pd.DataFrame
         Daily returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     required_return: float / series
@@ -475,9 +512,11 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
 
     Returns
     -------
-    depends on input type
-    series ==> float
-    DataFrame ==> pd.Series
+    float, pd.Series
+
+        depends on input type
+        series ==> float
+        DataFrame ==> pd.Series
 
         Annualized Sortino ratio.
 
@@ -488,17 +527,12 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
 
     ann_factor = annualization_factor(period, annualization)
 
-    if len(returns) < 2:
-        return np.nan
-
     adj_returns = _adjust_returns(returns, required_return)
     mu = nanmean(adj_returns, axis=0)
     dsr = (_downside_risk if _downside_risk is not None
            else downside_risk(returns, required_return,
                               period=period, annualization=annualization))
     sortino = mu / dsr
-    if len(returns.shape) == 2:
-        sortino = pd.Series(sortino, index=returns.columns)
     return sortino * ann_factor
 
 
@@ -509,7 +543,7 @@ def downside_risk(returns, required_return=0, period=DAILY,
 
     Parameters
     ----------
-    returns : pd.Series or pd.DataFrame
+    returns : pd.Series or np.ndarray or pd.DataFrame
         Daily returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     required_return: float / series
@@ -528,9 +562,10 @@ def downside_risk(returns, required_return=0, period=DAILY,
 
     Returns
     -------
-    depends on input type
-    series ==> float
-    DataFrame ==> pd.Series
+    float, pd.Series
+        depends on input type
+        series ==> float
+        DataFrame ==> pd.Series
 
         Annualized downside deviation
 
@@ -541,13 +576,14 @@ def downside_risk(returns, required_return=0, period=DAILY,
 
     ann_factor = annualization_factor(period, annualization)
 
-    downside_diff = _adjust_returns(returns, required_return)
+    downside_diff = _adjust_returns(returns, required_return).copy()
     mask = downside_diff > 0
     downside_diff[mask] = 0.0
     squares = np.square(downside_diff)
     mean_squares = nanmean(squares, axis=0)
     dside_risk = np.sqrt(mean_squares) * np.sqrt(ann_factor)
-    if len(returns.shape) == 2:
+
+    if len(returns.shape) == 2 and isinstance(returns, pd.DataFrame):
         dside_risk = pd.Series(dside_risk, index=returns.columns)
     return dside_risk
 
@@ -558,7 +594,7 @@ def information_ratio(returns, factor_returns):
 
     Parameters
     ----------
-    returns : pd.Series or pd.DataFrame
+    returns : pd.Series or np.ndarray
         Daily returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     factor_returns: float / series
@@ -578,12 +614,33 @@ def information_ratio(returns, factor_returns):
         return np.nan
 
     active_return = _adjust_returns(returns, factor_returns)
-    tracking_error = np.std(active_return, ddof=1)
+    tracking_error = nanstd(active_return, ddof=1)
     if np.isnan(tracking_error):
         return 0.0
     if tracking_error == 0:
         return np.nan
-    return np.mean(active_return) / tracking_error
+    return nanmean(active_return) / tracking_error
+
+
+def _aligned_series(*many_series):
+    """
+    Return a new list of series containing the data in the input series, but
+    with their indices aligned. NaNs will be filled in for missing values.
+
+    Parameters
+    ----------
+    many_series : list[pd.Series]
+
+    Returns
+    -------
+    aligned_series : list[pd.Series]
+
+        A new list of series containing the data in the input series, but
+        with their indices aligned. NaNs will be filled in for missing values.
+
+    """
+    return [series
+            for col, series in iteritems(pd.concat(many_series, axis=1))]
 
 
 def alpha_beta(returns, factor_returns, risk_free=0.0, period=DAILY,
@@ -622,9 +679,57 @@ def alpha_beta(returns, factor_returns, risk_free=0.0, period=DAILY,
         Beta.
 
     """
-    b = beta(returns, factor_returns, risk_free)
-    a = alpha(returns, factor_returns, risk_free, period, annualization,
-              _beta=b)
+    if len(returns) < 2 or len(factor_returns) < 2:
+        return np.nan, np.nan
+
+    return alpha_beta_aligned(*_aligned_series(returns, factor_returns),
+                              risk_free=risk_free, period=period,
+                              annualization=annualization)
+
+
+def alpha_beta_aligned(returns, factor_returns, risk_free=0.0, period=DAILY,
+                       annualization=None):
+    """Calculates annualized alpha and beta.
+
+    If they are pd.Series, expects returns and factor_returns have already
+    been aligned on their labels.  If np.ndarray, these arguments should have
+    the same shape.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    factor_returns : pd.Series or np.ndarray
+         Daily noncumulative returns of the factor to which beta is
+         computed. Usually a benchmark such as the market.
+         - This is in the same style as returns.
+    risk_free : int, float, optional
+        Constant risk-free return throughout the period. For example, the
+        interest rate on a three month us treasury bill.
+    period : str, optional
+        Defines the periodicity of the 'returns' data for purposes of
+        annualizing. Value ignored if `annualization` parameter is specified.
+        Defaults are:
+            'monthly':12
+            'weekly': 52
+            'daily': 252
+    annualization : int, optional
+        Used to suppress default values available in `period` to convert
+        returns into annual returns. Value should be the annual frequency of
+        `returns`.
+
+    Returns
+    -------
+    float
+        Alpha.
+    float
+        Beta.
+
+    """
+    b = beta_aligned(returns, factor_returns, risk_free)
+    a = alpha_aligned(returns, factor_returns, risk_free, period,
+                      annualization, _beta=b)
     return a, b
 
 
@@ -665,21 +770,68 @@ def alpha(returns, factor_returns, risk_free=0.0, period=DAILY,
     float
         Alpha.
     """
+    if len(returns) < 2 or len(factor_returns) < 2:
+        return np.nan
+
+    return alpha_aligned(*_aligned_series(returns, factor_returns),
+                         risk_free=risk_free, period=period,
+                         annualization=annualization, _beta=_beta)
+
+
+def alpha_aligned(returns, factor_returns, risk_free=0.0, period=DAILY,
+                  annualization=None, _beta=None):
+    """Calculates annualized alpha.
+
+    If they are pd.Series, expects returns and factor_returns have already
+    been aligned on their labels.  If np.ndarray, these arguments should have
+    the same shape.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    factor_returns : pd.Series or np.ndarray
+         Daily noncumulative returns of the factor to which beta is
+         computed. Usually a benchmark such as the market.
+         - This is in the same style as returns.
+    risk_free : int, float, optional
+        Constant risk-free return throughout the period. For example, the
+        interest rate on a three month us treasury bill.
+    period : str, optional
+        Defines the periodicity of the 'returns' data for purposes of
+        annualizing. Value ignored if `annualization` parameter is specified.
+        Defaults are:
+            'monthly':12
+            'weekly': 52
+            'daily': 252
+    annualization : int, optional
+        Used to suppress default values available in `period` to convert
+        returns into annual returns. Value should be the annual frequency of
+        `returns`.
+        - See full explanation in :func:`~empyrical.stats.annual_return`.
+    _beta : float, optional
+        The beta for the given inputs, if already known. Will be calculated
+        internally if not provided.
+
+    Returns
+    -------
+    float
+        Alpha.
+    """
     if len(returns) < 2:
         return np.nan
 
     ann_factor = annualization_factor(period, annualization)
 
     if _beta is None:
-        b = beta(returns, factor_returns, risk_free)
-    else:
-        b = _beta
+        _beta = beta_aligned(returns, factor_returns, risk_free)
 
     adj_returns = _adjust_returns(returns, risk_free)
     adj_factor_returns = _adjust_returns(factor_returns, risk_free)
-    alpha_series = adj_returns - (b * adj_factor_returns)
+    alpha_series = adj_returns - (_beta * adj_factor_returns)
 
-    return alpha_series.mean() * ann_factor
+    return nanmean(alpha_series) * ann_factor
 
 
 def beta(returns, factor_returns, risk_free=0.0):
@@ -703,16 +855,49 @@ def beta(returns, factor_returns, risk_free=0.0):
     float
         Beta.
     """
+    if len(returns) < 2 or len(factor_returns) < 2:
+        return np.nan
+
+    return beta_aligned(*_aligned_series(returns, factor_returns),
+                        risk_free=risk_free)
+
+
+def beta_aligned(returns, factor_returns, risk_free=0.0):
+    """Calculates beta.
+
+    If they are pd.Series, expects returns and factor_returns have already
+    been aligned on their labels.  If np.ndarray, these arguments should have
+    the same shape.
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    factor_returns : pd.Series or np.ndarray
+         Daily noncumulative returns of the factor to which beta is
+         computed. Usually a benchmark such as the market.
+         - This is in the same style as returns.
+    risk_free : int, float, optional
+        Constant risk-free return throughout the period. For example, the
+        interest rate on a three month us treasury bill.
+
+    Returns
+    -------
+    float
+        Beta.
+    """
 
     if len(returns) < 2 or len(factor_returns) < 2:
         return np.nan
     # Filter out dates with np.nan as a return value
-    joint = pd.concat([_adjust_returns(returns, risk_free),
-                       factor_returns], axis=1).dropna()
-    if len(joint) < 2:
+    joint = np.vstack([_adjust_returns(returns, risk_free),
+                       factor_returns])
+    joint = joint[:, ~np.isnan(joint).any(axis=0)]
+    if joint.shape[1] < 2:
         return np.nan
 
-    cov = np.cov(joint.values.T, ddof=0)
+    cov = np.cov(joint, ddof=0)
 
     if np.absolute(cov[1, 1]) < 1.0e-30:
         return np.nan
@@ -727,7 +912,7 @@ def stability_of_timeseries(returns):
 
     Parameters
     ----------
-    returns : pd.Series
+    returns : pd.Series or np.ndarray
         Daily returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
 
@@ -740,11 +925,12 @@ def stability_of_timeseries(returns):
     if len(returns) < 2:
         return np.nan
 
-    returns = returns.dropna()
+    returns = np.asanyarray(returns)
+    returns = returns[~np.isnan(returns)]
 
     cum_log_returns = np.log1p(returns).cumsum()
     rhat = stats.linregress(np.arange(len(cum_log_returns)),
-                            cum_log_returns.values)[2]
+                            cum_log_returns)[2]
 
     return rhat ** 2
 
@@ -757,7 +943,7 @@ def tail_ratio(returns):
 
     Parameters
     ----------
-    returns : pd.Series
+    returns : pd.Series or np.ndarray
         Daily returns of the strategy, noncumulative.
          - See full explanation in :func:`~empyrical.stats.cum_returns`.
 
@@ -771,8 +957,9 @@ def tail_ratio(returns):
     if len(returns) < 1:
         return np.nan
 
+    returns = np.asanyarray(returns)
     # Be tolerant of nan's
-    returns = returns.dropna()
+    returns = returns[~np.isnan(returns)]
     if len(returns) < 1:
         return np.nan
 
@@ -786,7 +973,7 @@ def cagr(returns, period=DAILY, annualization=None):
 
     Parameters
     ----------
-    returns : pd.Series
+    returns : pd.Series or np.ndarray
         Daily returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     period : str, optional
@@ -813,12 +1000,14 @@ def cagr(returns, period=DAILY, annualization=None):
 
     ann_factor = annualization_factor(period, annualization)
     no_years = len(returns) / float(ann_factor)
-    ending_value = cum_returns(returns, starting_value=1).iloc[-1]
+    # Pass array to ensure index -1 looks up successfully.
+    ending_value = cum_returns(np.asanyarray(returns), starting_value=1)[-1]
 
     return ending_value ** (1. / no_years) - 1
 
 
 SIMPLE_STAT_FUNCS = [
+    cum_returns_final,
     annual_return,
     annual_volatility,
     sharpe_ratio,

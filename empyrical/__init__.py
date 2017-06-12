@@ -19,7 +19,8 @@ __version__ = get_versions()['version']
 del get_versions
 
 from .stats import (
-    cum_returns, 
+    cum_returns,
+    cum_returns_final,
     aggregate_returns,
     max_drawdown,
     annual_return,
@@ -33,6 +34,9 @@ from .stats import (
     alpha_beta,
     alpha,
     beta,
+    alpha_beta_aligned,
+    alpha_aligned,
+    beta_aligned,
     stability_of_timeseries,
     tail_ratio,
     cagr,

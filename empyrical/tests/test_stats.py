@@ -1,13 +1,17 @@
 from __future__ import division
 
-from unittest import TestCase, skip
-from nose_parameterized import parameterized
-from numpy.testing import assert_almost_equal
 import random
+from copy import copy
+from operator import attrgetter
+from unittest import TestCase, skip, SkipTest
 
+from nose_parameterized import parameterized
 import numpy as np
+from numpy.testing import assert_almost_equal, assert_allclose
 import pandas as pd
+from pandas.core.generic import NDFrame
 from scipy import stats
+from six import iteritems, wraps
 
 import empyrical
 
@@ -128,6 +132,7 @@ class TestStats(TestCase):
         'two': pd.Series(two, index=df_index_month)})
 
     @parameterized.expand([
+        (empty_returns, 0, []),
         (mixed_returns, 0, [0.0, 0.01, 0.111, 0.066559, 0.08789, 0.12052,
                             0.14293, 0.15436, 0.03893]),
         (mixed_returns, 100, [100.0, 101.0, 111.1, 106.65599, 108.78912,
@@ -136,13 +141,32 @@ class TestStats(TestCase):
                                -0.22818, -0.27449, -0.33253, -0.36590])
     ])
     def test_cum_returns(self, returns, starting_value, expected):
-        cum_returns = empyrical.cum_returns(returns,
-                                            starting_value=starting_value)
+        cum_returns = self.empyrical.cum_returns(
+            returns,
+            starting_value=starting_value,
+        )
         for i in range(returns.size):
             assert_almost_equal(
                 cum_returns[i],
                 expected[i],
                 4)
+
+    @parameterized.expand([
+        (empty_returns, 0, np.nan),
+        (one_return, 0, one_return[0]),
+        (mixed_returns, 0, 0.03893),
+        (mixed_returns, 100, 103.89310),
+        (negative_returns, 0, -0.36590)
+    ])
+    def test_cum_returns_final(self, returns, starting_value, expected):
+        cum_returns_final = self.empyrical.cum_returns_final(
+            returns,
+            starting_value=starting_value,
+        )
+        assert_almost_equal(
+            cum_returns_final,
+            expected,
+            4)
 
     @parameterized.expand([
         (simple_benchmark, empyrical.WEEKLY, [0.0,
@@ -157,8 +181,9 @@ class TestStats(TestCase):
         (monthly_returns, empyrical.YEARLY, [0.038931091700480147])
     ])
     def test_aggregate_returns(self, returns, convert_to, expected):
-        returns = empyrical.aggregate_returns(returns,
-                                              convert_to).values.tolist()
+        returns = self.empyrical(pandas_only=True).aggregate_returns(
+            returns, convert_to
+        ).values.tolist()
         for i, v in enumerate(returns):
             assert_almost_equal(
                 v,
@@ -179,7 +204,7 @@ class TestStats(TestCase):
     ])
     def test_max_drawdown(self, returns, expected):
         assert_almost_equal(
-            empyrical.max_drawdown(
+            self.empyrical.max_drawdown(
                 returns
             ),
             expected,
@@ -198,8 +223,8 @@ class TestStats(TestCase):
     ])
     @skip("Randomly fails")
     def test_max_drawdown_transformation(self, returns, constant):
-        max_dd = empyrical.max_drawdown(returns)
-        transformed_dd = empyrical.max_drawdown(constant*returns)
+        max_dd = self.empyrical.max_drawdown(returns)
+        transformed_dd = self.empyrical.max_drawdown(constant*returns)
         if constant >= 1:
             assert constant*max_dd <= transformed_dd
         else:
@@ -218,9 +243,9 @@ class TestStats(TestCase):
     def test_max_drawdown_translation(self, returns, constant):
         depressed_returns = returns-constant
         raised_returns = returns+constant
-        max_dd = empyrical.max_drawdown(returns)
-        depressed_dd = empyrical.max_drawdown(depressed_returns)
-        raised_dd = empyrical.max_drawdown(raised_returns)
+        max_dd = self.empyrical.max_drawdown(returns)
+        depressed_dd = self.empyrical.max_drawdown(depressed_returns)
+        raised_dd = self.empyrical.max_drawdown(raised_returns)
         assert max_dd <= raised_dd
         assert depressed_dd <= max_dd
 
@@ -231,7 +256,7 @@ class TestStats(TestCase):
     ])
     def test_annual_ret(self, returns, period, expected):
         assert_almost_equal(
-            empyrical.annual_return(
+            self.empyrical.annual_return(
                 returns,
                 period=period
             ),
@@ -246,7 +271,7 @@ class TestStats(TestCase):
     ])
     def test_annual_volatility(self, returns, period, expected):
         assert_almost_equal(
-            empyrical.annual_volatility(
+            self.empyrical.annual_volatility(
                 returns,
                 period=period
             ),
@@ -263,7 +288,7 @@ class TestStats(TestCase):
     ])
     def test_calmar(self, returns, period, expected):
         assert_almost_equal(
-            empyrical.calmar_ratio(
+            self.empyrical.calmar_ratio(
                 returns,
                 period=period
             ),
@@ -285,7 +310,7 @@ class TestStats(TestCase):
     def test_omega(self, returns, risk_free, required_return,
                    expected):
         assert_almost_equal(
-            empyrical.omega_ratio(
+            self.empyrical.omega_ratio(
                 returns,
                 risk_free=risk_free,
                 required_return=required_return),
@@ -300,8 +325,8 @@ class TestStats(TestCase):
     ])
     def test_omega_returns(self, returns, required_return_less,
                            required_return_more):
-        assert empyrical.omega_ratio(returns, required_return_less) > \
-            empyrical.omega_ratio(returns, required_return_more)
+        assert self.empyrical.omega_ratio(returns, required_return_less) > \
+               self.empyrical.omega_ratio(returns, required_return_more)
 
     # Regressive sharpe ratio tests
     @parameterized.expand([
@@ -315,7 +340,7 @@ class TestStats(TestCase):
     ])
     def test_sharpe_ratio(self, returns, risk_free, expected):
         assert_almost_equal(
-            empyrical.sharpe_ratio(
+            self.empyrical.sharpe_ratio(
                 returns,
                 risk_free=risk_free),
             expected,
@@ -329,11 +354,11 @@ class TestStats(TestCase):
     ])
     def test_sharpe_translation_same(self, returns, required_return,
                                      translation):
-        sr = empyrical.sharpe_ratio(returns, required_return)
-        sr_depressed = empyrical.sharpe_ratio(
+        sr = self.empyrical.sharpe_ratio(returns, required_return)
+        sr_depressed = self.empyrical.sharpe_ratio(
             returns-translation,
             required_return-translation)
-        sr_raised = empyrical.sharpe_ratio(
+        sr_raised = self.empyrical.sharpe_ratio(
             returns+translation,
             required_return+translation)
         assert_almost_equal(
@@ -354,11 +379,11 @@ class TestStats(TestCase):
     def test_sharpe_translation_diff(self, returns, required_return,
                                      translation_returns,
                                      translation_required):
-        sr = empyrical.sharpe_ratio(returns, required_return)
-        sr_depressed = empyrical.sharpe_ratio(
+        sr = self.empyrical.sharpe_ratio(returns, required_return)
+        sr_depressed = self.empyrical.sharpe_ratio(
             returns-translation_returns,
             required_return-translation_required)
-        sr_raised = empyrical.sharpe_ratio(
+        sr_raised = self.empyrical.sharpe_ratio(
             returns+translation_returns,
             required_return+translation_required)
         assert sr != sr_depressed
@@ -370,11 +395,11 @@ class TestStats(TestCase):
         (noise, 0, .005)
     ])
     def test_sharpe_translation_1(self, returns, required_return, translation):
-        sr = empyrical.sharpe_ratio(returns, required_return)
-        sr_depressed = empyrical.sharpe_ratio(
+        sr = self.empyrical.sharpe_ratio(returns, required_return)
+        sr_depressed = self.empyrical.sharpe_ratio(
             returns,
             required_return-translation)
-        sr_raised = empyrical.sharpe_ratio(
+        sr_raised = self.empyrical.sharpe_ratio(
             returns,
             required_return+translation)
         assert sr_depressed > sr
@@ -396,8 +421,8 @@ class TestStats(TestCase):
             [random.gauss(.01, large) for i in range(1000)],
             index=index
         )
-        assert empyrical.sharpe_ratio(smaller_normal, 0.001) > \
-            empyrical.sharpe_ratio(larger_normal, 0.001)
+        assert self.empyrical.sharpe_ratio(smaller_normal, 0.001) > \
+            self.empyrical.sharpe_ratio(larger_normal, 0.001)
 
     # Regressive downside risk tests
     @parameterized.expand([
@@ -421,7 +446,7 @@ class TestStats(TestCase):
                    index=['one', 'two']))
     ])
     def test_downside_risk(self, returns, required_return, period, expected):
-        downside_risk = empyrical.downside_risk(
+        downside_risk = self.empyrical.downside_risk(
             returns,
             required_return=required_return,
             period=period)
@@ -447,9 +472,9 @@ class TestStats(TestCase):
         noisy_returns_1 = noise[0:250].add(flat_line[250:], fill_value=0)
         noisy_returns_2 = noise[0:500].add(flat_line[500:], fill_value=0)
         noisy_returns_3 = noise[0:750].add(flat_line[750:], fill_value=0)
-        dr_1 = empyrical.downside_risk(noisy_returns_1, flat_line)
-        dr_2 = empyrical.downside_risk(noisy_returns_2, flat_line)
-        dr_3 = empyrical.downside_risk(noisy_returns_3, flat_line)
+        dr_1 = self.empyrical.downside_risk(noisy_returns_1, flat_line)
+        dr_2 = self.empyrical.downside_risk(noisy_returns_2, flat_line)
+        dr_3 = self.empyrical.downside_risk(noisy_returns_3, flat_line)
         assert dr_1 <= dr_2
         assert dr_2 <= dr_3
 
@@ -459,9 +484,9 @@ class TestStats(TestCase):
         (noise_uniform, .005)
     ])
     def test_downside_risk_trans(self, returns, required_return):
-        dr_0 = empyrical.downside_risk(returns, -required_return)
-        dr_1 = empyrical.downside_risk(returns, 0)
-        dr_2 = empyrical.downside_risk(returns, required_return)
+        dr_0 = self.empyrical.downside_risk(returns, -required_return)
+        dr_1 = self.empyrical.downside_risk(returns, 0)
+        dr_2 = self.empyrical.downside_risk(returns, required_return)
         assert dr_0 <= dr_1
         assert dr_1 <= dr_2
 
@@ -481,8 +506,8 @@ class TestStats(TestCase):
             [random.gauss(0, larger_std) for i in range(1000)],
             index=pd.date_range('2000-1-30', periods=1000, freq='D')
         )
-        assert empyrical.downside_risk(less_noise) < \
-            empyrical.downside_risk(more_noise)
+        assert self.empyrical.downside_risk(less_noise) < \
+            self.empyrical.downside_risk(more_noise)
 
     # Regressive sortino ratio tests
     @parameterized.expand([
@@ -508,7 +533,7 @@ class TestStats(TestCase):
                    index=['one', 'two']))
     ])
     def test_sortino(self, returns, required_return, period, expected):
-        sortino_ratio = empyrical.sortino_ratio(
+        sortino_ratio = self.empyrical.sortino_ratio(
             returns,
             required_return=required_return,
             period=period)
@@ -534,14 +559,14 @@ class TestStats(TestCase):
     def test_sortino_add_noise(self, returns, required_return):
         # Don't mutate global test state
         returns = returns.copy()
-        sr_1 = empyrical.sortino_ratio(returns, required_return)
+        sr_1 = self.empyrical.sortino_ratio(returns, required_return)
         upside_values = returns[returns > required_return].index.tolist()
         # Add large losses at random upside locations
         loss_loc = random.sample(upside_values, 2)
         returns[loss_loc[0]] = -0.01
-        sr_2 = empyrical.sortino_ratio(returns, required_return)
+        sr_2 = self.empyrical.sortino_ratio(returns, required_return)
         returns[loss_loc[1]] = -0.01
-        sr_3 = empyrical.sortino_ratio(returns, required_return)
+        sr_3 = self.empyrical.sortino_ratio(returns, required_return)
         assert sr_1 > sr_2
         assert sr_2 > sr_3
 
@@ -554,14 +579,14 @@ class TestStats(TestCase):
     def test_sortino_sub_noise(self, returns, required_return):
         # Don't mutate global test state
         returns = returns.copy()
-        sr_1 = empyrical.sortino_ratio(returns, required_return)
+        sr_1 = self.empyrical.sortino_ratio(returns, required_return)
         downside_values = returns[returns < required_return].index.tolist()
         # Replace some values below the required return to the required return
         loss_loc = random.sample(downside_values, 2)
         returns[loss_loc[0]] = required_return
-        sr_2 = empyrical.sortino_ratio(returns, required_return)
+        sr_2 = self.empyrical.sortino_ratio(returns, required_return)
         returns[loss_loc[1]] = required_return
-        sr_3 = empyrical.sortino_ratio(returns, required_return)
+        sr_3 = self.empyrical.sortino_ratio(returns, required_return)
         assert sr_1 <= sr_2
         assert sr_2 <= sr_3
 
@@ -573,11 +598,11 @@ class TestStats(TestCase):
     ])
     def test_sortino_translation_same(self, returns, required_return,
                                       translation):
-        sr = empyrical.sortino_ratio(returns, required_return)
-        sr_depressed = empyrical.sortino_ratio(
+        sr = self.empyrical.sortino_ratio(returns, required_return)
+        sr_depressed = self.empyrical.sortino_ratio(
             returns-translation,
             required_return-translation)
-        sr_raised = empyrical.sortino_ratio(
+        sr_raised = self.empyrical.sortino_ratio(
             returns+translation,
             required_return+translation)
         assert_almost_equal(
@@ -598,11 +623,11 @@ class TestStats(TestCase):
     def test_sortino_translation_diff(self, returns, required_return,
                                       translation_returns,
                                       translation_required):
-        sr = empyrical.sortino_ratio(returns, required_return)
-        sr_depressed = empyrical.sortino_ratio(
+        sr = self.empyrical.sortino_ratio(returns, required_return)
+        sr_depressed = self.empyrical.sortino_ratio(
             returns-translation_returns,
             required_return-translation_required)
-        sr_raised = empyrical.sortino_ratio(
+        sr_raised = self.empyrical.sortino_ratio(
             returns+translation_returns,
             required_return+translation_required)
         assert sr != sr_depressed
@@ -618,7 +643,7 @@ class TestStats(TestCase):
     ])
     def test_information_ratio(self, returns, factor_returns, expected):
         assert_almost_equal(
-            empyrical.information_ratio(returns, factor_returns),
+            self.empyrical.information_ratio(returns, factor_returns),
             expected,
             DECIMAL_PLACES)
 
@@ -633,9 +658,9 @@ class TestStats(TestCase):
         noisy_returns_1 = noise_line[0:250].add(benchmark[250:], fill_value=0)
         noisy_returns_2 = noise_line[0:500].add(benchmark[500:], fill_value=0)
         noisy_returns_3 = noise_line[0:750].add(benchmark[750:], fill_value=0)
-        ir_1 = empyrical.information_ratio(noisy_returns_1, benchmark)
-        ir_2 = empyrical.information_ratio(noisy_returns_2, benchmark)
-        ir_3 = empyrical.information_ratio(noisy_returns_3, benchmark)
+        ir_1 = self.empyrical.information_ratio(noisy_returns_1, benchmark)
+        ir_2 = self.empyrical.information_ratio(noisy_returns_2, benchmark)
+        ir_3 = self.empyrical.information_ratio(noisy_returns_3, benchmark)
         assert abs(ir_1) < abs(ir_2)
         assert abs(ir_2) < abs(ir_3)
 
@@ -648,15 +673,15 @@ class TestStats(TestCase):
         (neg_line, inv_noise, flat_line_1_tz)
     ])
     def test_information_ratio_trans(self, returns, add_noise, translation):
-        ir = empyrical.information_ratio(
+        ir = self.empyrical.information_ratio(
             returns+add_noise,
             returns
         )
-        raised_ir = empyrical.information_ratio(
+        raised_ir = self.empyrical.information_ratio(
             returns+add_noise+translation,
             returns
         )
-        depressed_ir = empyrical.information_ratio(
+        depressed_ir = self.empyrical.information_ratio(
             returns+add_noise-translation,
             returns
         )
@@ -672,12 +697,16 @@ class TestStats(TestCase):
         (mixed_returns, -mixed_returns, (0.0, -1.0)),
     ])
     def test_alpha_beta(self, returns, benchmark, expected):
+        alpha, beta = self.empyrical(
+            pandas_only=len(returns) != len(benchmark),
+            return_types=tuple,
+        ).alpha_beta(returns, benchmark)
         assert_almost_equal(
-            empyrical.alpha_beta(returns, benchmark)[0],
+            alpha,
             expected[0],
             DECIMAL_PLACES)
         assert_almost_equal(
-            empyrical.alpha_beta(returns, benchmark)[1],
+            beta,
             expected[1],
             DECIMAL_PLACES)
 
@@ -690,7 +719,7 @@ class TestStats(TestCase):
         (mixed_returns, -mixed_returns, 0.0),
     ])
     def test_alpha(self, returns, benchmark, expected):
-        observed = empyrical.alpha(returns, benchmark)
+        observed = self.empyrical.alpha(returns, benchmark)
         assert_almost_equal(
             observed,
             expected,
@@ -733,11 +762,12 @@ class TestStats(TestCase):
         # Translate returns and generate alphas and betas.
         returns_depressed = returns-translation
         returns_raised = returns+translation
-        (alpha_depressed, beta_depressed) = empyrical.alpha_beta(
+        alpha_beta = self.empyrical(return_types=tuple).alpha_beta
+        (alpha_depressed, beta_depressed) = alpha_beta(
             returns_depressed, benchmark)
-        (alpha_standard, beta_standard) = empyrical.alpha_beta(
+        (alpha_standard, beta_standard) = alpha_beta(
             returns, benchmark)
-        (alpha_raised, beta_raised) = empyrical.alpha_beta(
+        (alpha_raised, beta_raised) = alpha_beta(
             returns_raised, benchmark)
         # Alpha should change proportionally to how much returns were
         # translated.
@@ -786,10 +816,9 @@ class TestStats(TestCase):
         returns_more = pd.Series(ret_more, index=index)
         benchmark_more = pd.Series(bench_more, index=index)
         # Calculate alpha/beta values
-        alpha_less, beta_less = empyrical.alpha_beta(returns_less,
-                                                     benchmark_less)
-        alpha_more, beta_more = empyrical.alpha_beta(returns_more,
-                                                     benchmark_more)
+        alpha_beta = self.empyrical(return_types=tuple).alpha_beta
+        alpha_less, beta_less = alpha_beta(returns_less, benchmark_less)
+        alpha_more, beta_more = alpha_beta(returns_more, benchmark_more)
         # Alpha determines by how much returns vary from the benchmark return.
         # A lower correlation leads to higher alpha.
         assert alpha_less > alpha_more
@@ -800,12 +829,13 @@ class TestStats(TestCase):
     # When faced with data containing np.nan, do not return np.nan. Calculate
     # alpha and beta using dates containing both.
     @parameterized.expand([
-        (sparse_noise, sparse_flat_line_1_tz),
+        (sparse_noise, sparse_noise),
     ])
     def test_alpha_beta_with_nan_inputs(self, returns, benchmark):
-        alpha, beta = empyrical.alpha_beta(returns, benchmark)
-        self.assertNotEqual(alpha, np.nan)
-        self.assertNotEqual(beta, np.nan)
+        alpha, beta = self.empyrical(return_types=tuple).alpha_beta(returns,
+                                                                    benchmark)
+        self.assertFalse(np.isnan(alpha))
+        self.assertFalse(np.isnan(beta))
 
     @parameterized.expand([
         (empty_returns, simple_benchmark, np.nan),
@@ -818,7 +848,7 @@ class TestStats(TestCase):
         (sparse_noise*flat_line_1_tz, sparse_flat_line_1_tz, np.nan),
     ])
     def test_beta(self, returns, benchmark, expected):
-        observed = empyrical.beta(returns, benchmark)
+        observed = self.empyrical.beta(returns, benchmark)
         assert_almost_equal(
             observed,
             expected,
@@ -846,14 +876,17 @@ class TestStats(TestCase):
         (mixed_returns, -mixed_returns),
     ])
     def test_alpha_beta_equality(self, returns, benchmark):
-        alpha_beta = empyrical.alpha_beta(returns, benchmark)
+        alpha, beta = self.empyrical(
+            pandas_only=len(returns) != len(benchmark),
+            return_types=tuple,
+        ).alpha_beta(returns, benchmark)
         assert_almost_equal(
-            alpha_beta[0],
-            empyrical.alpha(returns, benchmark),
+            alpha,
+            self.empyrical.alpha(returns, benchmark),
             DECIMAL_PLACES)
         assert_almost_equal(
-            alpha_beta[1],
-            empyrical.beta(returns, benchmark),
+            beta,
+            self.empyrical.beta(returns, benchmark),
             DECIMAL_PLACES)
 
         if len(returns) == len(benchmark):
@@ -865,11 +898,11 @@ class TestStats(TestCase):
                                                          benchmark_arr[mask])
 
             assert_almost_equal(
-                alpha_beta[0],
+                alpha,
                 intercept
             )
             assert_almost_equal(
-                alpha_beta[1],
+                beta,
                 slope
             )
 
@@ -881,7 +914,7 @@ class TestStats(TestCase):
     ])
     def test_stability_of_timeseries(self, returns, expected):
         assert_almost_equal(
-            empyrical.stability_of_timeseries(returns),
+            self.empyrical.stability_of_timeseries(returns),
             expected,
             DECIMAL_PLACES)
 
@@ -893,7 +926,7 @@ class TestStats(TestCase):
     ])
     def test_tail_ratio(self, returns, expected):
         assert_almost_equal(
-            empyrical.tail_ratio(returns),
+            self.empyrical.tail_ratio(returns),
             expected,
             1)
 
@@ -910,7 +943,7 @@ class TestStats(TestCase):
     ])
     def test_cagr(self, returns, period, expected):
         assert_almost_equal(
-            empyrical.cagr(returns, period=period),
+            self.empyrical.cagr(returns, period=period),
             expected,
             DECIMAL_PLACES)
 
@@ -922,9 +955,9 @@ class TestStats(TestCase):
         (noise_uniform, .01)
     ])
     def test_cagr_translation(self, returns, constant):
-        cagr_depressed = empyrical.cagr(returns-constant)
-        cagr_unchanged = empyrical.cagr(returns)
-        cagr_raised = empyrical.cagr(returns+constant)
+        cagr_depressed = self.empyrical.cagr(returns-constant)
+        cagr_unchanged = self.empyrical.cagr(returns)
+        cagr_raised = self.empyrical.cagr(returns+constant)
         self.assertTrue(cagr_depressed < cagr_unchanged)
         self.assertTrue(cagr_unchanged < cagr_raised)
 
@@ -933,7 +966,7 @@ class TestStats(TestCase):
         (sparse_noise,)
     ])
     def test_cagr_with_nan_inputs(self, returns):
-        self.assertNotEqual(empyrical.cagr(returns), np.nan)
+        self.assertFalse(np.isnan(self.empyrical.cagr(returns)))
 
     # Adding noise to returns should not significantly alter the cagr values.
     # Confirm that adding noise does not change cagr values to one
@@ -944,9 +977,9 @@ class TestStats(TestCase):
         (flat_line_1_tz, noise)
     ])
     def test_cagr_noisy(self, returns, add_noise):
-        cagr = empyrical.cagr(returns)
-        noisy_cagr_1 = empyrical.cagr(returns+add_noise)
-        noisy_cagr_2 = empyrical.cagr(returns-add_noise)
+        cagr = self.empyrical.cagr(returns)
+        noisy_cagr_1 = self.empyrical.cagr(returns+add_noise)
+        noisy_cagr_2 = self.empyrical.cagr(returns-add_noise)
         np.testing.assert_approx_equal(
             cagr,
             noisy_cagr_1,
@@ -955,3 +988,277 @@ class TestStats(TestCase):
             cagr,
             noisy_cagr_2,
             1)
+
+    @property
+    def empyrical(self):
+        """
+        This returns a wrapper around the empyrical module, so tests can
+        perform input conversions or return type checks on each call to an
+        empyrical function.
+
+        Each test case subclass can override this property, so that all the
+        same tests are run, but with different function inputs or type checks.
+
+        This was done as part of enabling empyrical functions to work with
+        inputs of either pd.Series or np.ndarray, with the expectation that
+        they will return the same type as their input.
+
+        Returns
+        -------
+        empyrical
+
+        Notes
+        -----
+        Since some parameterized test parameters refer to attributes on the
+        real empyrical module at class body scope, this property must be
+        defined later in the body than those references. That way, the
+        attributes are looked up on the empyrical module, not this property.
+
+        e.g. empyrical.DAILY
+        """
+        return ReturnTypeEmpyricalProxy(self, (pd.Series, float))
+
+
+class TestStatsArrays(TestStats):
+    """
+    Tests pass np.ndarray inputs to empyrical and assert that outputs are of
+    type np.ndarray or float.
+
+    """
+    @property
+    def empyrical(self):
+        return PassArraysEmpyricalProxy(self, (np.ndarray, float))
+
+
+class TestStatsIntIndex(TestStats):
+    """
+    Tests pass int-indexed pd.Series inputs to empyrical and assert that
+    outputs are of type pd.Series or float.
+
+    This prevents a regression where we're indexing with ints into a pd.Series
+    to find the last item and get a KeyError when the series is int-indexed.
+
+    """
+    @property
+    def empyrical(self):
+        return ConvertPandasEmpyricalProxy(
+            self,
+            (pd.Series, float),
+            lambda obj: type(obj)(obj.values, index=np.arange(len(obj))),
+        )
+
+
+class Test2DStats(TestCase):
+    """
+    Tests for functions that are capable of outputting a DataFrame.
+    """
+
+    input_one = [np.nan, 0.01322056, 0.03063862, -0.01422057,
+                 -0.00489779, 0.01268925, -0.03357711, 0.01797036]
+    input_two = [0.01846232, 0.00793951, -0.01448395, 0.00422537,
+                 -0.00339611, 0.03756813, 0.0151531, np.nan]
+
+    expected_0_one = [0.000000, 0.013221, 0.044264, 0.029414, 0.024372,
+                      0.037371, 0.002539, 0.020555]
+    expected_0_two = [0.018462, 0.026548, 0.011680, 0.015955, 0.012504,
+                      0.050542, 0.066461, 0.066461]
+
+    expected_100_one = [100.000000, 101.322056, 104.426424, 102.941421,
+                        102.437235, 103.737087, 100.253895, 102.055494]
+    expected_100_two = [101.846232, 102.654841, 101.167994, 101.595466,
+                        101.250436, 105.054226, 106.646123, 106.646123]
+
+    df_index = pd.date_range('2000-1-30', periods=8, freq='D')
+
+    df_input = pd.DataFrame({
+        'one': pd.Series(input_one, index=df_index),
+        'two': pd.Series(input_two, index=df_index)})
+
+    df_empty = pd.DataFrame()
+
+    df_0_expected = pd.DataFrame({
+        'one': pd.Series(expected_0_one, index=df_index),
+        'two': pd.Series(expected_0_two, index=df_index)})
+
+    df_100_expected = pd.DataFrame({
+        'one': pd.Series(expected_100_one, index=df_index),
+        'two': pd.Series(expected_100_two, index=df_index)})
+
+    @parameterized.expand([
+        (df_input, 0, df_0_expected),
+        (df_input, 100, df_100_expected),
+        (df_empty, 0, pd.DataFrame())
+    ])
+    def test_cum_returns_df(self, returns, starting_value, expected):
+        cum_returns = self.empyrical.cum_returns(
+            returns,
+            starting_value=starting_value,
+        )
+
+        assert_almost_equal(np.asarray(cum_returns),
+                            np.asarray(expected), 4)
+
+    @property
+    def empyrical(self):
+        """
+        Returns a wrapper around the empyrical module so tests can
+        perform input conversions or return type checks on each call to an
+        empyrical function. See full explanation in TestStats.
+
+        Returns
+        -------
+        empyrical
+
+        """
+
+        return ReturnTypeEmpyricalProxy(self, pd.DataFrame)
+
+
+class Test2DStatsArrays(Test2DStats):
+    """
+    Tests pass np.ndarray inputs to empyrical and assert that outputs are of
+    type np.ndarray.
+
+    """
+    @property
+    def empyrical(self):
+        return PassArraysEmpyricalProxy(self, np.ndarray)
+
+
+class ReturnTypeEmpyricalProxy(object):
+    """
+    A wrapper around the empyrical module which, on each function call, asserts
+    that the type of the return value is in a given set.
+
+    Also asserts that inputs were not modified by the empyrical function call.
+
+    Calling an instance with kwargs will return a new copy with those
+    attributes overridden.
+
+    """
+    def __init__(self, test_case, return_types):
+        self._test_case = test_case
+        self._return_types = return_types
+
+    def __call__(self, **kwargs):
+        dupe = copy(self)
+
+        for k, v in iteritems(kwargs):
+            attr = '_' + k
+            if hasattr(dupe, attr):
+                setattr(dupe, attr, v)
+
+        return dupe
+
+    def __copy__(self):
+        newone = type(self).__new__(type(self))
+        newone.__dict__.update(self.__dict__)
+        return newone
+
+    def __getattr__(self, item):
+        return self._check_input_not_mutated(
+            self._check_return_type(
+                getattr(empyrical, item)
+            )
+        )
+
+    def _check_return_type(self, func):
+        @wraps(func)
+        def check_return_type(*args, **kwargs):
+            result = func(*args, **kwargs)
+            self._test_case.assertIsInstance(result, self._return_types)
+            return result
+
+        return check_return_type
+
+    def _check_input_not_mutated(self, func):
+        @wraps(func)
+        def check_not_mutated(*args, **kwargs):
+            # Copy inputs to compare them to originals later.
+            arg_copies = [(i, arg.copy()) for i, arg in enumerate(args)
+                          if isinstance(arg, (NDFrame, np.ndarray))]
+            kwarg_copies = {
+                k: v.copy() for k, v in iteritems(kwargs)
+                if isinstance(v, (NDFrame, np.ndarray))
+            }
+
+            result = func(*args, **kwargs)
+
+            # Check that inputs weren't mutated by func.
+            for i, arg_copy in arg_copies:
+                assert_allclose(
+                    args[i],
+                    arg_copy,
+                    atol=0.5 * 10 ** (-DECIMAL_PLACES),
+                    err_msg="Input 'arg %s' mutated by %s"
+                            % (i, func.__name__),
+                )
+            for kwarg_name, kwarg_copy in iteritems(kwarg_copies):
+                assert_allclose(
+                    kwargs[kwarg_name],
+                    kwarg_copy,
+                    atol=0.5 * 10 ** (-DECIMAL_PLACES),
+                    err_msg="Input '%s' mutated by %s"
+                            % (kwarg_name, func.__name__),
+                )
+
+            return result
+
+        return check_not_mutated
+
+
+class ConvertPandasEmpyricalProxy(ReturnTypeEmpyricalProxy):
+    """
+    A ReturnTypeEmpyricalProxy which also converts pandas NDFrame inputs to
+    empyrical functions according to the given conversion method.
+
+    Calling an instance with a truthy pandas_only will return a new instance
+    which will skip the test when an empyrical function is called.
+
+    """
+    def __init__(self, test_case, return_types, convert, pandas_only=False):
+        super(ConvertPandasEmpyricalProxy, self).__init__(test_case,
+                                                          return_types)
+        self._convert = convert
+        self._pandas_only = pandas_only
+
+    def __getattr__(self, item):
+        if self._pandas_only:
+            raise SkipTest("empyrical.%s expects pandas-only inputs that have "
+                           "dt indices/labels" % item)
+
+        func = super(ConvertPandasEmpyricalProxy, self).__getattr__(item)
+
+        @wraps(func)
+        def convert_args(*args, **kwargs):
+            args = [self._convert(arg) if isinstance(arg, NDFrame) else arg
+                    for arg in args]
+            kwargs = {
+                k: self._convert(v) if isinstance(v, NDFrame) else v
+                for k, v in iteritems(kwargs)
+            }
+            return func(*args, **kwargs)
+
+        return convert_args
+
+
+class PassArraysEmpyricalProxy(ConvertPandasEmpyricalProxy):
+    """
+    A ConvertPandasEmpyricalProxy which converts NDFrame inputs to empyrical
+    functions to numpy arrays.
+
+    Calls the underlying
+    empyrical.[alpha|beta|alpha_beta]_aligned functions directly, instead of
+    the wrappers which align Series first.
+
+    """
+    def __init__(self, test_case, return_types):
+        super(PassArraysEmpyricalProxy, self).__init__(
+            test_case, return_types, attrgetter('values'),
+        )
+
+    def __getattr__(self, item):
+        if item in ('alpha', 'beta', 'alpha_beta'):
+            item += '_aligned'
+
+        return super(PassArraysEmpyricalProxy, self).__getattr__(item)
