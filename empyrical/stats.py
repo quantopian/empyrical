@@ -494,7 +494,8 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
     adj_returns = _adjust_returns(returns, required_return)
     mu = nanmean(adj_returns, axis=0)
     dsr = (_downside_risk if _downside_risk is not None
-           else downside_risk(returns, required_return))
+           else downside_risk(returns, required_return,
+                              period=period, annualization=annualization))
     sortino = mu / dsr
     if len(returns.shape) == 2:
         sortino = pd.Series(sortino, index=returns.columns)
