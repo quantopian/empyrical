@@ -520,16 +520,16 @@ class TestStats(TestCase):
         (positive_returns, 0.0, empyrical.DAILY, np.inf),
         (negative_returns, 0.0, empyrical.DAILY, -13.532743075043401),
         (simple_benchmark, 0.0, empyrical.DAILY, np.inf),
-        (weekly_returns, 0.0, empyrical.WEEKLY, 0.50690062680370862),
-        (monthly_returns, 0.0, empyrical.MONTHLY, 0.11697706772393276),
+        (weekly_returns, 0.0, empyrical.WEEKLY, 1.1158901056866439),
+        (monthly_returns, 0.0, empyrical.MONTHLY, 0.53605626741889756),
         (df_simple, 0.0, empyrical.DAILY,
          pd.Series([3.0639640966566306, 38.090963117002495],
                    index=['one', 'two'])),
         (df_week, 0.0, empyrical.WEEKLY,
-         pd.Series([0.63224655962755871, 7.8600400082703556],
+         pd.Series([1.3918264112070571, 17.303077589064618],
                    index=['one', 'two'])),
         (df_month, 0.0, empyrical.MONTHLY,
-         pd.Series([0.14590305222174432, 1.8138553865239282],
+         pd.Series([0.6686117809312383, 8.3121296084492844],
                    index=['one', 'two']))
     ])
     def test_sortino(self, returns, required_return, period, expected):
