@@ -1009,7 +1009,8 @@ class TestStats(TestCase):
 
     @parameterized.expand([
         (empty_returns, 6, []),
-        (negative_returns, 6, [-0.2282, -0.2745, -0.2899])
+        (negative_returns, 6, [-18.09162052, -26.79897486, -26.69138263]),
+        (mixed_returns, 6, [7.57445259, 8.22784105, 8.22784105])
     ])
     def test_roll_sharpe_ratio(self, returns, window, expected):
         test = self.empyrical.roll_sharpe_ratio(returns, window=window)
@@ -1034,11 +1035,152 @@ class TestStats(TestCase):
         (empty_returns, empty_returns, np.nan),
         (one_return, one_return, np.nan),
         (mixed_returns, mixed_returns, 1.),
-        (all_negative_returns, mixed_returns, 0.99956025703798634)
+        (all_negative_returns, mixed_returns, 0.99956025703798634),
+        (positive_returns, mixed_returns, -11.27400221)
     ])
-    def test_down_capture_ratio(self, returns, factor_returns, expected):
+    def test_down_capture(self, returns, factor_returns, expected):
         assert_almost_equal(
             self.empyrical.down_capture(returns, factor_returns),
+            expected,
+            DECIMAL_PLACES)
+
+    @parameterized.expand([
+        (empty_returns, simple_benchmark, 1, []),
+        (one_return, one_return, 1, []),
+        (mixed_returns, negative_returns[1:],
+         6, [(-3.81286957, -0.7826087),
+         (-3.58278261, -0.80434783), (-2.93669291, -0.37795276)]),
+        (mixed_returns, mixed_returns,
+         6, [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]),
+        (mixed_returns, -mixed_returns,
+         6, [(0.0, -1.0), (0.0, -1.0), (0.0, -1.0)]),
+    ])
+    def test_roll_alpha_beta(self, returns, benchmark, window, expected):
+
+        test = self.empyrical.roll_alpha_beta(returns, benchmark, window)
+        alpha_test = [t[0] for t in test]
+        beta_test = [t[1] for t in test]
+
+        alpha_expected = [t[0] for t in expected]
+        beta_expected = [t[1] for t in expected]
+
+        assert_almost_equal(
+            alpha_test,
+            alpha_expected,
+            DECIMAL_PLACES)
+
+        assert_almost_equal(
+            beta_test,
+            beta_expected,
+            DECIMAL_PLACES)
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, 1, []),
+        (one_return, one_return, 1,  np.nan),
+        (mixed_returns, mixed_returns, 6, [1., 1., 1.]),
+        (positive_returns, mixed_returns,
+         6, [-0.00011389, -0.00025861, -0.00015211]),
+        (all_negative_returns, mixed_returns,
+         6, [-6.38880246e-05, -1.65241701e-04, -1.65241719e-04])
+    ])
+    def test_roll_up_down_capture(self, returns, factor_returns, window,
+                                  expected):
+        test = self.empyrical.roll_up_down_capture(returns, factor_returns,
+                                                   window=window)
+        assert_almost_equal(
+            np.asarray(test),
+            np.asarray(expected),
+            DECIMAL_PLACES)
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, 1, []),
+        (one_return, one_return, 1,  1.),
+        (mixed_returns, mixed_returns, 6, [1., 1., 1.]),
+        (positive_returns, mixed_returns,
+         6, [-11.2743862, -11.2743862, -11.2743862]),
+        (all_negative_returns, mixed_returns,
+         6, [0.92058591, 0.92058591, 0.92058591])
+    ])
+    def test_roll_down_capture(self, returns, factor_returns, window,
+                               expected):
+        test = self.empyrical.roll_down_capture(returns, factor_returns,
+                                                window=window)
+        assert_almost_equal(
+            np.asarray(test),
+            np.asarray(expected),
+            DECIMAL_PLACES)
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, 1, []),
+        (one_return, one_return, 1,  1.),
+        (mixed_returns, mixed_returns, 6, [1., 1., 1.]),
+        (positive_returns, mixed_returns,
+         6, [0.00128406, 0.00291564, 0.00171499]),
+        (all_negative_returns, mixed_returns,
+         6, [-5.88144154e-05, -1.52119182e-04, -1.52119198e-04])
+    ])
+    def test_roll_up_capture(self, returns, factor_returns, window, expected):
+        test = self.empyrical.roll_up_capture(returns, factor_returns,
+                                              window=window)
+        assert_almost_equal(
+            np.asarray(test),
+            np.asarray(expected),
+            DECIMAL_PLACES)
+
+    @parameterized.expand([
+        (empty_returns, simple_benchmark, (np.nan, np.nan)),
+        (one_return, one_return, (np.nan, np.nan)),
+        (mixed_returns[1:], negative_returns[1:],
+         (-8.306666666666668, -0.71296296296296313)),
+        (mixed_returns, mixed_returns, (0.0, 1.0)),
+        (mixed_returns, -mixed_returns, (0.0, -1.0))
+    ])
+    def test_down_alpha_beta(self, returns, benchmark, expected):
+        down_alpha, down_beta = self.empyrical(
+            pandas_only=len(returns) != len(benchmark),
+            return_types=tuple,
+        ).down_alpha_beta(returns, benchmark)
+        assert_almost_equal(
+            down_alpha,
+            expected[0],
+            DECIMAL_PLACES)
+        assert_almost_equal(
+            down_beta,
+            expected[1],
+            DECIMAL_PLACES)
+
+    @parameterized.expand([
+        (empty_returns, simple_benchmark, (np.nan, np.nan)),
+        (one_return, one_return, (np.nan, np.nan)),
+        (mixed_returns[1:], positive_returns[1:],
+         (0.3599999999999995, 0.4285714285)),
+        (mixed_returns, mixed_returns, (0.0, 1.0)),
+        (mixed_returns, -mixed_returns, (0.0, -1.0))
+    ])
+    def test_up_alpha_beta(self, returns, benchmark, expected):
+        up_alpha, up_beta = self.empyrical(
+            pandas_only=len(returns) != len(benchmark),
+            return_types=tuple,
+        ).up_alpha_beta(returns, benchmark)
+        assert_almost_equal(
+            up_alpha,
+            expected[0],
+            DECIMAL_PLACES)
+        assert_almost_equal(
+            up_beta,
+            expected[1],
+            DECIMAL_PLACES)
+
+    @parameterized.expand([
+        (empty_returns, empty_returns, np.nan),
+        (one_return, one_return, np.nan),
+        (mixed_returns, mixed_returns, 1.),
+        (positive_returns, mixed_returns, -0.00067560),
+        (all_negative_returns, mixed_returns, -0.0004338236)
+    ])
+    def test_up_down_capture(self, returns, factor_returns, expected):
+        assert_almost_equal(
+            self.empyrical.up_down_capture(returns, factor_returns),
             expected,
             DECIMAL_PLACES)
 
@@ -1046,73 +1188,14 @@ class TestStats(TestCase):
         (empty_returns, empty_returns, np.nan),
         (one_return, one_return, 1.),
         (mixed_returns, mixed_returns, 1.),
-        (all_negative_returns, mixed_returns, -0.52257643222960259)
-    ])
-    def test_roll_alpha_beta(self, returns, factor_returns, window, expected):
-        pass
-
-    @parameterized.expand([
-        (empty_returns, empty_returns, np.nan),
-        (one_return, one_return, 1.),
-        (mixed_returns, mixed_returns, 1.),
-        (all_negative_returns, mixed_returns, -0.52257643222960259)
-    ])
-    def test_roll_up_down_capture(self, returns, factor_returns, window, expected):
-        pass
-
-    @parameterized.expand([
-        (empty_returns, empty_returns, np.nan),
-        (one_return, one_return, 1.),
-        (mixed_returns, mixed_returns, 1.),
-        (all_negative_returns, mixed_returns, -0.52257643222960259)
-    ])
-    def test_roll_down_capture(self, returns, factor_returns, window, expected):
-        pass
-
-    @parameterized.expand([
-        (empty_returns, empty_returns, np.nan),
-        (one_return, one_return, 1.),
-        (mixed_returns, mixed_returns, 1.),
-        (all_negative_returns, mixed_returns, -0.52257643222960259)
-    ])
-    def test_roll_up_capture(self, returns, factor_returns, window, expected):
-        pass
-
-    @parameterized.expand([
-        (empty_returns, empty_returns, np.nan),
-        (one_return, one_return, 1.),
-        (mixed_returns, mixed_returns, 1.),
-        (all_negative_returns, mixed_returns, -0.52257643222960259)
-    ])
-    def test_down_alpha_beta(self, returns, factor_returns, expected):
-        pass
-
-    @parameterized.expand([
-        (empty_returns, empty_returns, np.nan),
-        (one_return, one_return, 1.),
-        (mixed_returns, mixed_returns, 1.),
-        (all_negative_returns, mixed_returns, -0.52257643222960259)
-    ])
-    def test_up_alpha_beta(self, returns, factor_returns, expected):
-        pass
-
-    @parameterized.expand([
-        (empty_returns, empty_returns, np.nan),
-        (one_return, one_return, 1.),
-        (mixed_returns, mixed_returns, 1.),
-        (all_negative_returns, mixed_returns, -0.52257643222960259)
-    ])
-    def test_up_down_capture(self, returns, factor_returns, expected):
-        pass
-
-    @parameterized.expand([
-        (empty_returns, empty_returns, np.nan),
-        (one_return, one_return, 1.),
-        (mixed_returns, mixed_returns, 1.),
-        (all_negative_returns, mixed_returns, -0.52257643222960259)
+        (positive_returns, mixed_returns, 0.0076167762),
+        (all_negative_returns, mixed_returns, -0.0004336328)
     ])
     def test_up_capture(self, returns, factor_returns, expected):
-        pass
+        assert_almost_equal(
+            self.empyrical.up_capture(returns, factor_returns),
+            expected,
+            DECIMAL_PLACES)
 
     @property
     def empyrical(self):
@@ -1148,7 +1231,6 @@ class TestStatsArrays(TestStats):
     """
     Tests pass np.ndarray inputs to empyrical and assert that outputs are of
     type np.ndarray or float.
-
     """
     @property
     def empyrical(self):
@@ -1159,10 +1241,8 @@ class TestStatsIntIndex(TestStats):
     """
     Tests pass int-indexed pd.Series inputs to empyrical and assert that
     outputs are of type pd.Series or float.
-
     This prevents a regression where we're indexing with ints into a pd.Series
     to find the last item and get a KeyError when the series is int-indexed.
-
     """
     @property
     def empyrical(self):
@@ -1296,11 +1376,9 @@ class Test2DStats(TestCase):
         Returns a wrapper around the empyrical module so tests can
         perform input conversions or return type checks on each call to an
         empyrical function. See full explanation in TestStats.
-
         Returns
         -------
         empyrical
-
         """
 
         return ReturnTypeEmpyricalProxy(self, pd.DataFrame)
@@ -1310,7 +1388,6 @@ class Test2DStatsArrays(Test2DStats):
     """
     Tests pass np.ndarray inputs to empyrical and assert that outputs are of
     type np.ndarray.
-
     """
     @property
     def empyrical(self):
@@ -1321,12 +1398,9 @@ class ReturnTypeEmpyricalProxy(object):
     """
     A wrapper around the empyrical module which, on each function call, asserts
     that the type of the return value is in a given set.
-
     Also asserts that inputs were not modified by the empyrical function call.
-
     Calling an instance with kwargs will return a new copy with those
     attributes overridden.
-
     """
     def __init__(self, test_case, return_types):
         self._test_case = test_case
@@ -1403,10 +1477,8 @@ class ConvertPandasEmpyricalProxy(ReturnTypeEmpyricalProxy):
     """
     A ReturnTypeEmpyricalProxy which also converts pandas NDFrame inputs to
     empyrical functions according to the given conversion method.
-
     Calling an instance with a truthy pandas_only will return a new instance
     which will skip the test when an empyrical function is called.
-
     """
     def __init__(self, test_case, return_types, convert, pandas_only=False):
         super(ConvertPandasEmpyricalProxy, self).__init__(test_case,
@@ -1438,11 +1510,9 @@ class PassArraysEmpyricalProxy(ConvertPandasEmpyricalProxy):
     """
     A ConvertPandasEmpyricalProxy which converts NDFrame inputs to empyrical
     functions to numpy arrays.
-
     Calls the underlying
     empyrical.[alpha|beta|alpha_beta]_aligned functions directly, instead of
     the wrappers which align Series first.
-
     """
     def __init__(self, test_case, return_types):
         super(PassArraysEmpyricalProxy, self).__init__(
