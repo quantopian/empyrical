@@ -1406,9 +1406,10 @@ class ReturnTypeEmpyricalProxy(object):
     that the type of the return value is in a given set.
 
     Also asserts that inputs were not modified by the empyrical function call.
+
     Calling an instance with kwargs will return a new copy with those
     attributes overridden.
-    
+
     """
     def __init__(self, test_case, return_types):
         self._test_case = test_case
