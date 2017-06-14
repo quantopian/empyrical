@@ -1175,7 +1175,7 @@ class TestStats(TestCase):
         (empty_returns, empty_returns, np.nan),
         (one_return, one_return, np.nan),
         (mixed_returns, mixed_returns, 1.),
-        (positive_returns, mixed_returns, -0.00067560),
+        (positive_returns, mixed_returns, -0.0006756053495),
         (all_negative_returns, mixed_returns, -0.0004338236)
     ])
     def test_up_down_capture(self, returns, factor_returns, expected):
