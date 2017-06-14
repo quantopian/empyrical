@@ -1047,9 +1047,9 @@ class TestStats(TestCase):
     @parameterized.expand([
         (empty_returns, simple_benchmark, 1, []),
         (one_return, one_return, 1, []),
-        (mixed_returns, negative_returns[1:],
+        (mixed_returns, negative_returns,
          6, [(-3.81286957, -0.7826087),
-         (-3.58278261, -0.80434783), (-2.93669291, -0.37795276)]),
+         (-4.03558719, -0.76156584), (-2.66915888, -0.61682243)]),
         (mixed_returns, mixed_returns,
          6, [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]),
         (mixed_returns, -mixed_returns,
