@@ -1098,7 +1098,7 @@ def up_alpha_beta(returns, factor_returns, **kwargs):
     float
         Beta.
     """
-    return up(returns, factor_returns, function=alpha_beta, **kwargs)
+    return up(returns, factor_returns, function=alpha_beta_aligned, **kwargs)
 
 
 def down_alpha_beta(returns, factor_returns, **kwargs):
@@ -1116,7 +1116,7 @@ def down_alpha_beta(returns, factor_returns, **kwargs):
     float
         Beta.
     """
-    return down(returns, factor_returns, function=alpha_beta, **kwargs)
+    return down(returns, factor_returns, function=alpha_beta_aligned, **kwargs)
 
 
 def roll_up_capture(returns, factor_returns, window=10, **kwargs):
@@ -1194,8 +1194,8 @@ def roll_alpha_beta(returns, factor_returns, window=10, **kwargs):
         Size of the rolling window in terms of the periodicity of the data.
         - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
     """
-    return roll(returns, factor_returns, window=window, function=alpha_beta,
-                **kwargs)
+    return roll(returns, factor_returns, window=window,
+                function=alpha_beta_aligned, **kwargs)
 
 
 def roll_sharpe_ratio(returns, window=10, **kwargs):
