@@ -12,17 +12,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import numpy as np
 import pandas as pd
-import bottleneck as bn
+import numpy as np
 
-nanmean = bn.nanmean
-nanstd = bn.nanstd
-nansum = bn.nansum
-nanmax = bn.nanmax
-nanmin = bn.nanmin
-nanargmax = bn.nanargmax
-nanargmin = bn.nanargmin
+try:
+    # fast versions
+    import bottleneck as bn
+    nanmean = bn.nanmean
+    nanstd = bn.nanstd
+    nansum = bn.nansum
+    nanmax = bn.nanmax
+    nanmin = bn.nanmin
+    nanargmax = bn.nanargmax
+    nanargmin = bn.nanargmin
+except ImportError:
+    # slower numpy
+    nanmean = np.nanmean
+    nanstd = np.nanstd
+    nansum = np.nansum
+    nanmax = np.nanmax
+    nanmin = np.nanmin
+    nanargmax = np.nanargmax
+    nanargmin = np.nanargmin
 
 
 def roll(*args, **kwargs):
