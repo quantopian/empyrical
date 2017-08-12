@@ -12,8 +12,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pandas as pd
+
+import errno
+from os import makedirs, environ
+from os.path import expanduser, join, getmtime, isdir
+import warnings
+
 import numpy as np
+import pandas as pd
+from pandas.tseries.offsets import BDay
+
+from pandas_datareader import data as web
 
 try:
     # fast versions
@@ -145,3 +154,178 @@ def _roll_pandas(func, window, *args, **kwargs):
         rets = [s.iloc[i-window:i] for s in args]
         data[args[0].index[i]] = func(*rets, **kwargs)
     return pd.Series(data)
+
+
+def cache_dir(environ=environ):
+    try:
+        return environ['PYFOLIO_CACHE_DIR']
+    except KeyError:
+        return join(
+            environ.get(
+                'XDG_CACHE_HOME',
+                expanduser('~/.cache/'),
+            ),
+            'pyfolio',
+        )
+
+
+def data_path(name):
+    return join(cache_dir(), name)
+
+
+def ensure_directory(path):
+    """
+    Ensure that a directory named "path" exists.
+    """
+
+    try:
+        makedirs(path)
+    except OSError as exc:
+        if exc.errno != errno.EEXIST or not isdir(path):
+            raise
+
+
+def get_utc_timestamp(dt):
+    """
+    Returns the Timestamp/DatetimeIndex
+    with either localized or converted to UTC.
+    Parameters
+    ----------
+    dt : Timestamp/DatetimeIndex
+        the date(s) to be converted
+    Returns
+    -------
+    same type as input
+        date(s) converted to UTC
+    """
+
+    dt = pd.to_datetime(dt)
+    try:
+        dt = dt.tz_localize('UTC')
+    except TypeError:
+        dt = dt.tz_convert('UTC')
+    return dt
+
+
+_1_bday = BDay()
+
+
+def _1_bday_ago():
+    return pd.Timestamp.now().normalize() - _1_bday
+
+
+def get_fama_french():
+    """
+    Retrieve Fama-French factors via pandas-datareader
+    Returns
+    -------
+    pandas.DataFrame
+        Percent change of Fama-French factors
+    """
+
+    start = '1/1/1970'
+    research_factors = web.DataReader('F-F_Research_Data_Factors_daily',
+                                      'famafrench', start=start)[0]
+    momentum_factor = web.DataReader('F-F_Momentum_Factor_daily',
+                                     'famafrench', start=start)[0]
+    five_factors = research_factors.join(momentum_factor).dropna()
+    five_factors /= 100.
+    five_factors.index = five_factors.index.tz_localize('utc')
+
+    return five_factors
+
+
+def get_returns_cached(filepath, update_func, latest_dt, **kwargs):
+    """
+    Get returns from a cached file if the cache is recent enough,
+    otherwise, try to retrieve via a provided update function and
+    update the cache file.
+    Parameters
+    ----------
+    filepath : str
+        Path to cached csv file
+    update_func : function
+        Function to call in case cache is not up-to-date.
+    latest_dt : pd.Timestamp (tz=UTC)
+        Latest datetime required in csv file.
+    **kwargs : Keyword arguments
+        Optional keyword arguments will be passed to update_func()
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing returns
+    """
+
+    update_cache = False
+
+    try:
+        mtime = getmtime(filepath)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise
+        update_cache = True
+    else:
+
+        file_dt = pd.Timestamp(mtime, unit='s')
+
+        if latest_dt.tzinfo:
+            file_dt = file_dt.tz_localize('utc')
+
+        if file_dt < latest_dt:
+            update_cache = True
+        else:
+            returns = pd.read_csv(filepath, index_col=0, parse_dates=True)
+            returns.index = returns.index.tz_localize("UTC")
+
+    if update_cache:
+        returns = update_func(**kwargs)
+        try:
+            ensure_directory(cache_dir())
+        except OSError as e:
+            warnings.warn(
+                'could not update cache: {}. {}: {}'.format(
+                    filepath, type(e).__name__, e,
+                ),
+                UserWarning,
+            )
+
+        try:
+            returns.to_csv(filepath)
+        except OSError as e:
+            warnings.warn(
+                'could not update cache {}. {}: {}'.format(
+                    filepath, type(e).__name__, e,
+                ),
+                UserWarning,
+            )
+
+    return returns
+
+
+def load_portfolio_risk_factors(filepath_prefix=None, start=None, end=None):
+    """
+    Load risk factors Mkt-Rf, SMB, HML, Rf, and UMD.
+    Data is stored in HDF5 file. If the data is more than 2
+    days old, redownload from Dartmouth.
+    Returns
+    -------
+    five_factors : pd.DataFrame
+        Risk factors timeseries.
+    """
+
+    if start is None:
+        start = '1/1/1970'
+    if end is None:
+        end = _1_bday_ago()
+
+    start = get_utc_timestamp(start)
+    end = get_utc_timestamp(end)
+
+    if filepath_prefix is None:
+        filepath = data_path('factors.csv')
+    else:
+        filepath = filepath_prefix
+
+    five_factors = get_returns_cached(filepath, get_fama_french, end)
+
+    return five_factors.loc[start:end]
