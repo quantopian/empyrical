@@ -158,14 +158,15 @@ def _roll_pandas(func, window, *args, **kwargs):
 
 def cache_dir(environ=environ):
     try:
-        return environ['PYFOLIO_CACHE_DIR']
+        return environ['EMPYRICAL_CACHE_DIR']
     except KeyError:
         return join(
+
             environ.get(
                 'XDG_CACHE_HOME',
                 expanduser('~/.cache/'),
             ),
-            'pyfolio',
+            'empyrical',
         )
 
 
