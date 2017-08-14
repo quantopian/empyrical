@@ -330,3 +330,69 @@ def load_portfolio_risk_factors(filepath_prefix=None, start=None, end=None):
     five_factors = get_returns_cached(filepath, get_fama_french, end)
 
     return five_factors.loc[start:end]
+
+
+def get_treasury_yield(start=None, end=None, period='3MO'):
+    """
+    Load treasury yields from FRED.
+    Parameters
+    ----------
+    start : date, optional
+        Earliest date to fetch data for.
+        Defaults to earliest date available.
+    end : date, optional
+        Latest date to fetch data for.
+        Defaults to latest date available.
+    period : {'1MO', '3MO', '6MO', 1', '5', '10'}, optional
+        Which maturity to use.
+    Returns
+    -------
+    pd.Series
+        Annual treasury yield for every day.
+    """
+
+    if start is None:
+        start = '1/1/1970'
+    if end is None:
+        end = _1_bday_ago()
+
+    treasury = web.DataReader("DGS3{}".format(period), "fred",
+                              start, end)
+
+    treasury = treasury.ffill()
+
+    return treasury
+
+
+def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
+    """
+    Wrapper for pandas.io.data.get_data_yahoo().
+    Retrieves prices for symbol from yahoo and computes returns
+    based on adjusted closing prices.
+    Parameters
+    ----------
+    symbol : str
+        Symbol name to load, e.g. 'SPY'
+    start : pandas.Timestamp compatible, optional
+        Start date of time period to retrieve
+    end : pandas.Timestamp compatible, optional
+        End date of time period to retrieve
+    Returns
+    -------
+    pandas.DataFrame
+        Returns of symbol in requested period.
+    """
+
+    try:
+        px = web.get_data_yahoo(symbol, start=start, end=end)
+        rets = px[['Adj Close']].pct_change().dropna()
+    except Exception as e:
+        warnings.warn(
+            'Yahoo Finance read failed: {}, falling back to Google'.format(e),
+            UserWarning)
+        px = web.get_data_google(symbol, start=start, end=end)
+        rets = px[['Close']].pct_change().dropna()
+
+    rets.index = rets.index.tz_localize("UTC")
+    rets.columns = [symbol]
+    return rets
