@@ -396,3 +396,49 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     rets.index = rets.index.tz_localize("UTC")
     rets.columns = [symbol]
     return rets
+
+
+def default_returns_func(symbol, start=None, end=None):
+    """
+    Gets returns for a symbol.
+    Queries Yahoo Finance. Attempts to cache SPY.
+
+    Parameters
+    ----------
+    symbol : str
+        Ticker symbol, e.g. APPL.
+    start : date, optional
+        Earliest date to fetch data for.
+        Defaults to earliest date available.
+    end : date, optional
+        Latest date to fetch data for.
+        Defaults to latest date available.
+
+    Returns
+    -------
+    pd.Series
+        Daily returns for the symbol.
+         - See full explanation in tears.create_full_tear_sheet (returns).
+    """
+
+    if start is None:
+        start = '1/1/1970'
+    if end is None:
+        end = _1_bday_ago()
+
+    start = get_utc_timestamp(start)
+    end = get_utc_timestamp(end)
+
+    if symbol == 'SPY':
+        filepath = data_path('spy.csv')
+        rets = get_returns_cached(filepath,
+                                  get_symbol_returns_from_yahoo,
+                                  end,
+                                  symbol='SPY',
+                                  start='1/1/1970',
+                                  end=datetime.now())
+        rets = rets[start:end]
+    else:
+        rets = get_symbol_returns_from_yahoo(symbol, start=start, end=end)
+
+    return rets[symbol]
