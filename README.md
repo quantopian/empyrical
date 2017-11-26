@@ -50,7 +50,7 @@ Pandas Support
 import pandas as pd
 from empyrical import roll_up_capture, capture
 
-returns = pd.Series([.01, .02, .03, ... -.4, -.06, -.02])
+returns = pd.Series([.01, .02, .03, -.4, -.06, -.02])
 
 # calculate a capture ratio
 capture(returns)
