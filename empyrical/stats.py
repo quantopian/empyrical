@@ -409,8 +409,8 @@ def omega_ratio(returns, risk_free=0.0, required_return=0.0,
 
     returns_less_thresh = returns - risk_free - return_threshold
 
-    numer = sum(returns_less_thresh[returns_less_thresh > 0.0])
-    denom = -1.0 * sum(returns_less_thresh[returns_less_thresh < 0.0])
+    numer = sum(returns_less_thresh.loc[returns_less_thresh > 0.0])
+    denom = -1.0 * sum(returns_less_thresh.loc[returns_less_thresh < 0.0])
 
     if denom > 0.0:
         return numer / denom
