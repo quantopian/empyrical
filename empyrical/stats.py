@@ -520,7 +520,7 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
            else downside_risk(returns, required_return,
                               period=period, annualization=annualization))
     sortino = mu / dsr
-    return sortino * ann_factor
+    return sortino * np.sqrt(ann_factor)
 
 
 def downside_risk(returns, required_return=0, period=DAILY,
