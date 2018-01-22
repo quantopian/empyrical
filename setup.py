@@ -19,8 +19,8 @@ import versioneer
 
 
 DISTNAME = "empyrical"
-DESCRIPTION = """empyrical is a Python library with performance and risk statistics
-commonly used in quantitative finance"""
+DESCRIPTION = """empyrical is a Python library with performance and risk \
+statistics commonly used in quantitative finance"""
 LONG_DESCRIPTION = """empyrical is a Python library with performance and risk
 statistics commonly used in quantitative finance by `Quantopian Inc`_.
 
@@ -53,7 +53,7 @@ classifiers = [
 
 test_reqs = [
     "nose>=1.3.7",
-    "nose_parameterized>=0.5.0"
+    "parameterized>=0.6.1"
 ]
 
 
@@ -61,6 +61,7 @@ requirements = [
     'numpy>=1.9.2',
     'pandas>=0.16.1',
     'scipy>=0.15.1',
+    "pandas-datareader>=0.2",
     'bottleneck>=1.0.0'
 ]
 
@@ -68,7 +69,7 @@ requirements = [
 extras_requirements = {
     "dev": [
         "nose==1.3.7",
-        "nose-parameterized==0.5.0",
+        "parameterized==0.6.1",
         "flake8==2.5.1"
     ]
 }
