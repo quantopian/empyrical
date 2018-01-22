@@ -1598,8 +1598,6 @@ SIMPLE_STAT_FUNCS = [
     stats.kurtosis,
     tail_ratio,
     cagr,
-    beta_fragility_heuristic,
-    gpd_risk_estimates,
     value_at_risk,
     conditional_value_at_risk,
 ]
@@ -1608,6 +1606,8 @@ FACTOR_STAT_FUNCS = [
     excess_sharpe,
     alpha,
     beta,
+    beta_fragility_heuristic,
+    gpd_risk_estimates,
     capture,
     up_capture,
     down_capture
