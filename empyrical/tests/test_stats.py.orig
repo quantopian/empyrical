@@ -313,7 +313,7 @@ class TestStats(TestCase):
     def test_omega_returns(self, returns, required_return_less,
                            required_return_more):
         assert self.empyrical.omega_ratio(returns, required_return_less) > \
-               self.empyrical.omega_ratio(returns, required_return_more)
+            self.empyrical.omega_ratio(returns, required_return_more)
 
     # Regressive sharpe ratio tests
     @parameterized.expand([
@@ -976,6 +976,7 @@ class TestStats(TestCase):
             noisy_cagr_2,
             1)
 
+<<<<<<< HEAD
     # regression tests for beta_fragility_heuristic
     @parameterized.expand([
         (one_return, one_return, np.nan),
@@ -1020,7 +1021,7 @@ class TestStats(TestCase):
                 result_item,
                 expected_item,
                 DECIMAL_PLACES)
-
+=======
     @parameterized.expand([
         (empty_returns, 6, []),
         (negative_returns, 6, [-0.2282, -0.2745, -0.2899])
@@ -1269,6 +1270,7 @@ class TestStats(TestCase):
             assert_almost_equal(
                 conditional_value_at_risk(returns, cutoff), expected_cvar,
             )
+>>>>>>> upstream/master
 
     @property
     def empyrical(self):
@@ -1592,12 +1594,12 @@ class ConvertPandasEmpyricalProxy(ReturnTypeEmpyricalProxy):
 
 class PassArraysEmpyricalProxy(ConvertPandasEmpyricalProxy):
     """
-    A ConvertPandasEmpyricalProxy which converts NDFrame inputs to empyrical
-    functions to numpy arrays.
+    A ConvertPandasEmpyricalProxy which converts NDFrame inputs to
+    empyrical functions to numpy arrays.
 
     Calls the underlying
-    empyrical.[alpha|beta|alpha_beta]_aligned functions directly, instead of
-    the wrappers which align Series first.
+    empyrical.[alpha|beta|alpha_beta|...]_aligned functions directly, instead
+    of the wrappers which align Series first.
 
     """
     def __init__(self, test_case, return_types):
@@ -1606,7 +1608,8 @@ class PassArraysEmpyricalProxy(ConvertPandasEmpyricalProxy):
         )
 
     def __getattr__(self, item):
-        if item in ('alpha', 'beta', 'alpha_beta'):
+        if item in ('alpha', 'beta', 'alpha_beta',
+                    'beta_fragility_heuristic', 'gpd_risk_estimates'):
             item += '_aligned'
 
         return super(PassArraysEmpyricalProxy, self).__getattr__(item)
