@@ -515,12 +515,12 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
     ann_factor = annualization_factor(period, annualization)
 
     adj_returns = _adjust_returns(returns, required_return)
-    mu = nanmean(adj_returns, axis=0)
+    mu = nanmean(adj_returns, axis=0) * ann_factor
     dsr = (_downside_risk if _downside_risk is not None
            else downside_risk(returns, required_return,
                               period=period, annualization=annualization))
     sortino = mu / dsr
-    return sortino * ann_factor
+    return sortino
 
 
 def downside_risk(returns, required_return=0, period=DAILY,
