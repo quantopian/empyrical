@@ -506,7 +506,9 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
         DataFrame ==> pd.Series
 
         Annualized Sortino ratio.
-
+    Note
+    -----
+    See https://www.sunrisecapital.com/wp-content/uploads/2014/06/Futures_Mag_Sortino_0213.pdf for more details.
     """
 
     if len(returns) < 2:
@@ -515,11 +517,11 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
     ann_factor = annualization_factor(period, annualization)
 
     adj_returns = _adjust_returns(returns, required_return)
-    mu = nanmean(adj_returns, axis=0) * ann_factor
-    dsr = (_downside_risk if _downside_risk is not None
-           else downside_risk(returns, required_return,
-                              period=period, annualization=annualization))
-    sortino = mu / dsr
+    average_annual_return = nanmean(adj_returns, axis=0) * ann_factor
+    annualized_downside_risk = (_downside_risk if _downside_risk is not None
+                                else downside_risk(returns, required_return,
+                                                   period=period, annualization=annualization))
+    sortino = average_annual_return / annualized_downside_risk
     return sortino
 
 
@@ -555,7 +557,10 @@ def downside_risk(returns, required_return=0, period=DAILY,
         DataFrame ==> pd.Series
 
         Annualized downside deviation
-
+    Note
+    -----
+    See https://www.sunrisecapital.com/wp-content/uploads/2014/06/Futures_Mag_Sortino_0213.pdf for more details,
+    specifically why using the standard deviation of the negative returns is not correct.
     """
 
     if len(returns) < 1:
