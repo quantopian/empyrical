@@ -108,8 +108,7 @@ Testing
 
 Documentation
 -------------
-To build this documentation requires `sphinx` and the package `Napolean
-<https://sphinxcontrib-napoleon.readthedocs.io/en/latest/>`__
+To build this documentation requires `sphinx`
 
 ::
 
