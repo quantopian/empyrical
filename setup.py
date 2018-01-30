@@ -69,7 +69,7 @@ requirements = [
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 if on_rtd:
     botttleneck_string = [x for x in requirements if 'bottleneck' in x]
-    requirements.remove(botttleneck_string)
+    requirements.remove(botttleneck_string[0])
 
 extras_requirements = {
     "dev": [
