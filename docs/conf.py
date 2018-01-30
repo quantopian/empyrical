@@ -20,7 +20,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('.'))
-import empyrical
+# import empyrical
 
 
 # -- General configuration ------------------------------------------------
@@ -56,7 +56,7 @@ author = 'Quontopian'
 # built documents.
 #
 # The short X.Y version.
-ver = empyrical.__version__
+ver = "0.3.3" # empyrical.__version__
 version = ver[:ver.find('+')]  # get only the main part of the version
 # The full version, including alpha/beta/rc tags.
 release = version
