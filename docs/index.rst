@@ -115,10 +115,10 @@ To build this documentation requires `sphinx`
     cd docs
     make_docs.bat
 
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-
 
 
 Indices and tables

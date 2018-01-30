@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from setuptools import setup
-
+import os
 import versioneer
 
 
@@ -62,9 +62,14 @@ requirements = [
     'pandas>=0.19.2',
     'scipy>=0.15.1',
     "pandas-datareader>=0.2",
-    #'bottleneck>=1.0.0'
+    'bottleneck>=1.0.0'
 ]
 
+# ReadTheDocs does not handle bottleneck properly, remove if running on RTD
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+if on_rtd:
+    botttleneck_string = [x for x in requirements if 'bottleneck' in x]
+    requirements.remove(botttleneck_string)
 
 extras_requirements = {
     "dev": [
