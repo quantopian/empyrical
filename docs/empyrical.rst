@@ -1,23 +1,8 @@
 empyrical package
 =================
 
-Subpackages
------------
-
-.. toctree::
-
-    empyrical.tests
-
 Submodules
 ----------
-
-empyrical\.periods module
--------------------------
-
-.. automodule:: empyrical.periods
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 empyrical\.stats module
 -----------------------
