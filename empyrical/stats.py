@@ -239,7 +239,9 @@ def max_drawdown(returns):
 
 
 def annual_return(returns, period=DAILY, annualization=None):
-    """Determines the mean annual growth rate of returns.
+    """
+    Determines the mean annual growth rate of returns. This is equivilent
+    to the compound annual growth rate.
 
     Parameters
     ----------
@@ -271,16 +273,11 @@ def annual_return(returns, period=DAILY, annualization=None):
         return np.nan
 
     ann_factor = annualization_factor(period, annualization)
-
-    num_years = float(len(returns)) / ann_factor
-    start_value = 100
+    num_years = len(returns) / float(ann_factor)
     # Pass array to ensure index -1 looks up successfully.
-    end_value = cum_returns(np.asanyarray(returns),
-                            starting_value=start_value)[-1]
-    cum_returns_final = (end_value - start_value) / start_value
-    annual_return = (1. + cum_returns_final) ** (1. / num_years) - 1
+    ending_value = cum_returns_final(returns, starting_value=1)
 
-    return annual_return
+    return ending_value ** (1. / num_years) - 1
 
 
 def annual_volatility(returns, period=DAILY, alpha=2.0,
@@ -991,7 +988,8 @@ def tail_ratio(returns):
 
 def cagr(returns, period=DAILY, annualization=None):
     """
-    Compute compound annual growth rate.
+    Compute compound annual growth rate. Alias function for
+    :func:`~empyrical.stats.annual_return`
 
     Parameters
     ----------
@@ -1019,15 +1017,7 @@ def cagr(returns, period=DAILY, annualization=None):
         The CAGR value.
 
     """
-    if len(returns) < 1:
-        return np.nan
-
-    ann_factor = annualization_factor(period, annualization)
-    no_years = len(returns) / float(ann_factor)
-    # Pass array to ensure index -1 looks up successfully.
-    ending_value = cum_returns(np.asanyarray(returns), starting_value=1)[-1]
-
-    return ending_value ** (1. / no_years) - 1
+    return annual_return(returns, period, annualization)
 
 
 def capture(returns, factor_returns, period=DAILY):
