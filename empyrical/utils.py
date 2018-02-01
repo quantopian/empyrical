@@ -338,6 +338,7 @@ def load_portfolio_risk_factors(filepath_prefix=None, start=None, end=None):
 def get_treasury_yield(start=None, end=None, period='3MO'):
     """
     Load treasury yields from FRED.
+
     Parameters
     ----------
     start : date, optional
@@ -372,6 +373,7 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     Wrapper for pandas.io.data.get_data_yahoo().
     Retrieves prices for symbol from yahoo and computes returns
     based on adjusted closing prices.
+
     Parameters
     ----------
     symbol : str
@@ -380,6 +382,7 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
         Start date of time period to retrieve
     end : pandas.Timestamp compatible, optional
         End date of time period to retrieve
+
     Returns
     -------
     pandas.DataFrame
