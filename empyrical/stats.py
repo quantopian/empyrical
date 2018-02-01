@@ -280,6 +280,40 @@ def annual_return(returns, period=DAILY, annualization=None):
     return ending_value ** (1. / num_years) - 1
 
 
+def cagr(returns, period=DAILY, annualization=None):
+    """
+    Compute compound annual growth rate. Alias function for
+    :func:`~empyrical.stats.annual_return`
+
+    Parameters
+    ----------
+    returns : pd.Series or np.ndarray
+        Daily returns of the strategy, noncumulative.
+        - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    period : str, optional
+        Defines the periodicity of the 'returns' data for purposes of
+        annualizing. Value ignored if `annualization` parameter is specified.
+        Defaults are::
+
+            'monthly':12
+            'weekly': 52
+            'daily': 252
+
+    annualization : int, optional
+        Used to suppress default values available in `period` to convert
+        returns into annual returns. Value should be the annual frequency of
+        `returns`.
+        - See full explanation in :func:`~empyrical.stats.annual_return`.
+
+    Returns
+    -------
+    float, np.nan
+        The CAGR value.
+
+    """
+    return annual_return(returns, period, annualization)
+
+
 def annual_volatility(returns, period=DAILY, alpha=2.0,
                       annualization=None):
     """
@@ -316,10 +350,7 @@ def annual_volatility(returns, period=DAILY, alpha=2.0,
         return np.nan
 
     ann_factor = annualization_factor(period, annualization)
-
-    volatility = nanstd(returns, ddof=1) * (ann_factor ** (1.0 / alpha))
-
-    return volatility
+    return nanstd(returns, ddof=1) * (ann_factor ** (1.0 / alpha))
 
 
 def calmar_ratio(returns, period=DAILY, annualization=None):
@@ -984,40 +1015,6 @@ def tail_ratio(returns):
 
     return np.abs(np.percentile(returns, 95)) / \
         np.abs(np.percentile(returns, 5))
-
-
-def cagr(returns, period=DAILY, annualization=None):
-    """
-    Compute compound annual growth rate. Alias function for
-    :func:`~empyrical.stats.annual_return`
-
-    Parameters
-    ----------
-    returns : pd.Series or np.ndarray
-        Daily returns of the strategy, noncumulative.
-        - See full explanation in :func:`~empyrical.stats.cum_returns`.
-    period : str, optional
-        Defines the periodicity of the 'returns' data for purposes of
-        annualizing. Value ignored if `annualization` parameter is specified.
-        Defaults are::
-
-            'monthly':12
-            'weekly': 52
-            'daily': 252
-
-    annualization : int, optional
-        Used to suppress default values available in `period` to convert
-        returns into annual returns. Value should be the annual frequency of
-        `returns`.
-        - See full explanation in :func:`~empyrical.stats.annual_return`.
-
-    Returns
-    -------
-    float, np.nan
-        The CAGR value.
-
-    """
-    return annual_return(returns, period, annualization)
 
 
 def capture(returns, factor_returns, period=DAILY):
