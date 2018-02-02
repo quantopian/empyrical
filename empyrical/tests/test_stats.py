@@ -978,7 +978,7 @@ class TestStats(TestCase):
 
     @parameterized.expand([
         (empty_returns, 6, []),
-        (negative_returns, 6, [-0.2282, -0.2745, -0.2899])
+        (negative_returns, 6, [-0.2282, -0.2745, -0.2899, -0.2747])
     ])
     def test_roll_max_drawdown(self, returns, window, expected):
         test = self.empyrical.roll_max_drawdown(returns, window=window)
@@ -989,8 +989,9 @@ class TestStats(TestCase):
 
     @parameterized.expand([
         (empty_returns, 6, []),
-        (negative_returns, 6, [-18.09162052, -26.79897486, -26.69138263]),
-        (mixed_returns, 6, [7.57445259, 8.22784105, 8.22784105])
+        (negative_returns, 6, [-18.09162052, -26.79897486, -26.69138263,
+                               -25.72298838]),
+        (mixed_returns, 6, [7.57445259, 8.22784105, 8.22784105, -3.1374751])
     ])
     def test_roll_sharpe_ratio(self, returns, window, expected):
         test = self.empyrical.roll_sharpe_ratio(returns, window=window)
@@ -1026,14 +1027,14 @@ class TestStats(TestCase):
 
     @parameterized.expand([
         (empty_returns, simple_benchmark, 1, []),
-        (one_return, one_return, 1, []),
+        (one_return, one_return, 1, [(np.nan, np.nan)]),
         (mixed_returns, negative_returns,
          6, [(-3.81286957, -0.7826087), (-4.03558719, -0.76156584),
-             (-2.66915888, -0.61682243)]),
+             (-2.66915888, -0.61682243), (-7.8987541, -0.41311475)]),
         (mixed_returns, mixed_returns,
-         6, [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]),
+         6, [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]),
         (mixed_returns, -mixed_returns,
-         6, [(0.0, -1.0), (0.0, -1.0), (0.0, -1.0)]),
+         6, [(0.0, -1.0), (0.0, -1.0), (0.0, -1.0), (0.0, -1.0)]),
     ])
     def test_roll_alpha_beta(self, returns, benchmark, window, expected):
 
@@ -1057,11 +1058,12 @@ class TestStats(TestCase):
     @parameterized.expand([
         (empty_returns, empty_returns, 1, []),
         (one_return, one_return, 1,  np.nan),
-        (mixed_returns, mixed_returns, 6, [1., 1., 1.]),
+        (mixed_returns, mixed_returns, 6, [1., 1., 1., 1.]),
         (positive_returns, mixed_returns,
-         6, [-0.00011389, -0.00025861, -0.00015211]),
+         6, [-0.00011389, -0.00025861, -0.00015211, -0.00689239]),
         (all_negative_returns, mixed_returns,
-         6, [-6.38880246e-05, -1.65241701e-04, -1.65241719e-04])
+         6, [-6.38880246e-05, -1.65241701e-04, -1.65241719e-04,
+             -6.89541957e-03])
     ])
     def test_roll_up_down_capture(self, returns, factor_returns, window,
                                   expected):
@@ -1074,12 +1076,12 @@ class TestStats(TestCase):
 
     @parameterized.expand([
         (empty_returns, empty_returns, 1, []),
-        (one_return, one_return, 1,  1.),
-        (mixed_returns, mixed_returns, 6, [1., 1., 1.]),
+        (one_return, one_return, 1,  [np.nan]),
+        (mixed_returns, mixed_returns, 6, [1., 1., 1., 1.]),
         (positive_returns, mixed_returns,
-         6, [-11.2743862, -11.2743862, -11.2743862]),
+         6, [-11.2743862, -11.2743862, -11.2743862, -11.27400221]),
         (all_negative_returns, mixed_returns,
-         6, [0.92058591, 0.92058591, 0.92058591])
+         6, [0.92058591, 0.92058591, 0.92058591, 0.99956026])
     ])
     def test_roll_down_capture(self, returns, factor_returns, window,
                                expected):
@@ -1093,11 +1095,12 @@ class TestStats(TestCase):
     @parameterized.expand([
         (empty_returns, empty_returns, 1, []),
         (one_return, one_return, 1,  1.),
-        (mixed_returns, mixed_returns, 6, [1., 1., 1.]),
+        (mixed_returns, mixed_returns, 6, [1., 1., 1., 1.]),
         (positive_returns, mixed_returns,
-         6, [0.00128406, 0.00291564, 0.00171499]),
+         6, [0.00128406, 0.00291564, 0.00171499, 0.0777048]),
         (all_negative_returns, mixed_returns,
-         6, [-5.88144154e-05, -1.52119182e-04, -1.52119198e-04])
+         6, [-5.88144154e-05, -1.52119182e-04, -1.52119198e-04,
+             -6.89238735e-03])
     ])
     def test_roll_up_capture(self, returns, factor_returns, window, expected):
         test = self.empyrical.roll_up_capture(returns, factor_returns,
@@ -1308,7 +1311,7 @@ class TestHelpers(TestCase):
                            window=12,
                            function=empyrical.alpha_aligned)
 
-        self.assertTrue(res.size == self.ser_length - self.window)
+        self.assertEqual(res.size, self.ser_length - self.window + 1)
 
     def test_roll_ndarray(self):
         res = emutils.roll(self.returns.values,
@@ -1316,7 +1319,7 @@ class TestHelpers(TestCase):
                            window=12,
                            function=empyrical.alpha_aligned)
 
-        self.assertTrue(len(res == self.ser_length - self.window))
+        self.assertEqual(len(res), self.ser_length - self.window + 1)
 
     def test_down(self):
         pd_res = emutils.down(self.returns, self.factor_returns,
