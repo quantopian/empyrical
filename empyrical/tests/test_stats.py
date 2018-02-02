@@ -3,7 +3,7 @@ from __future__ import division
 import random
 from copy import copy
 from operator import attrgetter
-from unittest import TestCase, skip, SkipTest
+from unittest import TestCase, SkipTest
 
 from parameterized import parameterized
 import numpy as np
@@ -216,26 +216,6 @@ class TestStats(TestCase):
             ),
             expected,
             DECIMAL_PLACES)
-
-    # Multiplying returns by a positive constant larger than 1 will increase
-    # the maximum drawdown by a factor greater than or equal to the constant.
-    # Similarly, a positive constant smaller than 1 will decrease maximum
-    # drawdown by at least the constant.
-    @parameterized.expand([
-        (noise_uniform, 1.1),
-        (noise, 2),
-        (noise_uniform, 10),
-        (noise_uniform, 0.99),
-        (noise, 0.5)
-    ])
-    @skip("Randomly fails")
-    def test_max_drawdown_transformation(self, returns, constant):
-        max_dd = self.empyrical.max_drawdown(returns)
-        transformed_dd = self.empyrical.max_drawdown(constant*returns)
-        if constant >= 1:
-            assert constant*max_dd <= transformed_dd
-        else:
-            assert constant*max_dd >= transformed_dd
 
     # Maximum drawdown is always less than or equal to zero. Translating
     # returns by a positive constant should increase the maximum
@@ -527,16 +507,16 @@ class TestStats(TestCase):
         (positive_returns, 0.0, empyrical.DAILY, np.inf),
         (negative_returns, 0.0, empyrical.DAILY, -13.532743075043401),
         (simple_benchmark, 0.0, empyrical.DAILY, np.inf),
-        (weekly_returns, 0.0, empyrical.WEEKLY, 0.50690062680370862),
-        (monthly_returns, 0.0, empyrical.MONTHLY, 0.11697706772393276),
+        (weekly_returns, 0.0, empyrical.WEEKLY, 1.1158901056866439),
+        (monthly_returns, 0.0, empyrical.MONTHLY, 0.53605626741889756),
         (df_simple, 0.0, empyrical.DAILY,
          pd.Series([3.0639640966566306, 38.090963117002495],
                    index=['one', 'two'])),
         (df_week, 0.0, empyrical.WEEKLY,
-         pd.Series([0.63224655962755871, 7.8600400082703556],
+         pd.Series([1.3918264112070571, 17.303077589064618],
                    index=['one', 'two'])),
         (df_month, 0.0, empyrical.MONTHLY,
-         pd.Series([0.14590305222174432, 1.8138553865239282],
+         pd.Series([0.6686117809312383, 8.3121296084492844],
                    index=['one', 'two']))
     ])
     def test_sortino(self, returns, required_return, period, expected):
@@ -1196,6 +1176,54 @@ class TestStats(TestCase):
             self.empyrical.up_capture(returns, factor_returns),
             expected,
             DECIMAL_PLACES)
+
+    def test_value_at_risk(self):
+        value_at_risk = self.empyrical.value_at_risk
+
+        returns = [1.0, 2.0]
+        assert_almost_equal(value_at_risk(returns, cutoff=0.0), 1.0)
+        assert_almost_equal(value_at_risk(returns, cutoff=0.3), 1.3)
+        assert_almost_equal(value_at_risk(returns, cutoff=1.0), 2.0)
+
+        returns = [1, 81, 82, 83, 84, 85]
+        assert_almost_equal(value_at_risk(returns, cutoff=0.1), 41)
+        assert_almost_equal(value_at_risk(returns, cutoff=0.2), 81)
+        assert_almost_equal(value_at_risk(returns, cutoff=0.3), 81.5)
+
+        # Test a returns stream of 21 data points at different cutoffs.
+        returns = np.random.normal(0, 0.02, 21)
+        for cutoff in (0, 0.0499, 0.05, 0.20, 0.999, 1):
+            assert_almost_equal(
+                value_at_risk(returns, cutoff),
+                np.percentile(returns, cutoff * 100),
+            )
+
+    def test_conditional_value_at_risk(self):
+        value_at_risk = self.empyrical.value_at_risk
+        conditional_value_at_risk = self.empyrical.conditional_value_at_risk
+
+        # A single-valued array will always just have a CVaR of its only value.
+        returns = np.random.normal(0, 0.02, 1)
+        expected_cvar = returns[0]
+        assert_almost_equal(
+            conditional_value_at_risk(returns, cutoff=0), expected_cvar,
+        )
+        assert_almost_equal(
+            conditional_value_at_risk(returns, cutoff=1), expected_cvar,
+        )
+
+        # Test a returns stream of 21 data points at different cutoffs.
+        returns = np.random.normal(0, 0.02, 21)
+
+        for cutoff in (0, 0.0499, 0.05, 0.20, 0.999, 1):
+            # Find the VaR based on our cutoff, then take the average of all
+            # values at or below the VaR.
+            var = value_at_risk(returns, cutoff)
+            expected_cvar = np.mean(returns[returns <= var])
+
+            assert_almost_equal(
+                conditional_value_at_risk(returns, cutoff), expected_cvar,
+            )
 
     @property
     def empyrical(self):

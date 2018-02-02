@@ -52,6 +52,8 @@ from .stats import (
     roll_up_down_capture,
     roll_alpha_beta,
     roll_sharpe_ratio,
+    value_at_risk,
+    conditional_value_at_risk,
 )
 
 from .periods import (
