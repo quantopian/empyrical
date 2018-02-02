@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import errno
 from os import makedirs, environ
 from os.path import expanduser, join, getmtime, isdir
@@ -143,7 +142,7 @@ def down(returns, factor_returns, **kwargs):
 
 def _roll_ndarray(func, window, *args, **kwargs):
     data = []
-    for i in range(window, len(args[0])):
+    for i in range(window, len(args[0]) + 1):
         rets = [s[i-window:i] for s in args]
         data.append(func(*rets, **kwargs))
     return np.array(data)
@@ -151,9 +150,9 @@ def _roll_ndarray(func, window, *args, **kwargs):
 
 def _roll_pandas(func, window, *args, **kwargs):
     data = {}
-    for i in range(window, len(args[0])):
+    for i in range(window, len(args[0]) + 1):
         rets = [s.iloc[i-window:i] for s in args]
-        data[args[0].index[i]] = func(*rets, **kwargs)
+        data[args[0].index[i - 1]] = func(*rets, **kwargs)
     return pd.Series(data)
 
 
