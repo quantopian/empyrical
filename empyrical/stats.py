@@ -112,12 +112,7 @@ def cum_returns(returns, starting_value=0):
     pd.Series, np.ndarray, or pd.DataFrame
         Series of cumulative returns.
 
-    Note
-    ----
-    The returns parameter are simple (not logarithmic) returns which means
-    that the cumulative returns are calculated by multiplication. This
-    process has less numerical precision than using logarithmic returns
-    for which the cumulative return would be calculated by addition.
+
     """
 
     if len(returns) < 1:
