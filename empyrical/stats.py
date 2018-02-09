@@ -20,9 +20,102 @@ import numpy as np
 from scipy import stats
 from six import iteritems
 
-from .utils import nanmean, nanstd, nanmin, up, down, roll
+from .utils import nanmean, nanstd, nanmin, up, down, roll, rolling_window
 from .periods import ANNUALIZATION_FACTORS, APPROX_BDAYS_PER_YEAR
 from .periods import DAILY, WEEKLY, MONTHLY, YEARLY
+
+
+def _create_unary_vectorized_roll_function(function):
+    def unary_vectorized_roll(arr, window, out=None, **kwargs):
+        """
+        Computes the {human_readable} measure over a rolling window.
+
+        Parameters
+        ----------
+        arr : array-like
+            The array to compute the rolling {human_readable} over.
+        window : int
+            Size of the rolling window in terms of the periodicity of the data.
+        out : array-like, optional
+            The array to store the store the output.
+        **kwargs
+            Forwarded to :func:`~empyrical.{name}`.
+
+        Returns
+        -------
+        rolling_{name} : array-like
+            The rolling {human_readable}.
+        """
+        allocated_output = out is None
+
+        if len(arr):
+            out = function(rolling_window(arr, window).T, out=out, **kwargs)
+        else:
+            out = np.empty(0, dtype='float64')
+
+        if allocated_output and isinstance(arr, pd.Series):
+            out = pd.Series(out)
+
+        return out
+
+    unary_vectorized_roll.__doc__ = unary_vectorized_roll.__doc__.format(
+        name=function.__name__,
+        human_readable=function.__name__.replace('_', ' '),
+    )
+
+    return unary_vectorized_roll
+
+
+def _create_binary_vectorized_roll_function(function):
+    def binary_vectorized_roll(lhs, rhs, window, out=None, **kwargs):
+        """
+        Computes the {human_readable} measure over a rolling window.
+
+        Parameters
+        ----------
+        lhs : array-like
+            The first array to pass to the rolling {human_readable}.
+        rhs : array-like
+            The second array to pass to the rolling {human_readable}.
+        window : int
+            Size of the rolling window in terms of the periodicity of the data.
+        out : array-like, optional
+            The array to store the store the output.
+        **kwargs
+            Forwarded to :func:`~empyrical.{name}`.
+
+        Returns
+        -------
+        rolling_{name} : array-like
+            The rolling {human_readable}.
+        """
+        allocated_output = out is None
+
+        if window >= 1 and len(lhs) and len(rhs):
+            out = function(
+                rolling_window(lhs, window).T,
+                rolling_window(rhs, window).T,
+                out=out,
+                **kwargs
+            )
+        elif allocated_output:
+            out = np.empty(0, dtype='float64')
+        else:
+            out[()] = np.nan
+
+        if allocated_output:
+            if out.ndim == 1 and isinstance(lhs, pd.Series):
+                out = pd.Series(out)
+            elif out.ndim == 2 and isinstance(lhs, pd.Series):
+                out = pd.DataFrame(out)
+        return out
+
+    binary_vectorized_roll.__doc__ = binary_vectorized_roll.__doc__.format(
+        name=function.__name__,
+        human_readable=function.__name__.replace('_', ' '),
+    )
+
+    return binary_vectorized_roll
 
 
 def _adjust_returns(returns, adjustment_factor):
@@ -37,7 +130,7 @@ def _adjust_returns(returns, adjustment_factor):
 
     Returns
     -------
-    pd.Series or np.ndarray
+    adjusted_returns : array-like
     """
     if isinstance(adjustment_factor, (float, int)) and adjustment_factor == 0:
         return returns
@@ -67,8 +160,7 @@ def annualization_factor(period, annualization):
 
     Returns
     -------
-    float
-        Annualization factor.
+    annualization_factor : float
     """
     if annualization is None:
         try:
@@ -85,7 +177,7 @@ def annualization_factor(period, annualization):
     return factor
 
 
-def cum_returns(returns, starting_value=0):
+def cum_returns(returns, starting_value=0, out=None):
     """
     Compute cumulative returns from simple returns.
 
@@ -106,28 +198,42 @@ def cum_returns(returns, starting_value=0):
 
     starting_value : float, optional
        The starting returns.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    pd.Series, np.ndarray, or pd.DataFrame
+    cumulative_returns : array-like
         Series of cumulative returns.
-
-
     """
 
     if len(returns) < 1:
         return type(returns)([])
 
-    if np.any(np.isnan(returns)):
+    nanmask = np.isnan(returns)
+    if np.any(nanmask):
         returns = returns.copy()
-        returns[np.isnan(returns)] = 0.
+        returns[nanmask] = 0
 
-    df_cum = (returns + 1).cumprod(axis=0)
+    allocated_output = out is None
+    if allocated_output:
+        out = np.empty_like(returns)
+
+    np.add(returns, 1, out=out)
+    out.cumprod(axis=0, out=out)
 
     if starting_value == 0:
-        return df_cum - 1
+        np.subtract(out, 1, out=out)
     else:
-        return df_cum * starting_value
+        np.multiply(out, starting_value, out=out)
+
+    if allocated_output:
+        if returns.ndim == 1 and isinstance(returns, pd.Series):
+            out = pd.Series(out)
+        elif isinstance(returns, pd.DataFrame):
+            out = pd.DataFrame(out)
+
+    return out
 
 
 def cum_returns_final(returns, starting_value=0):
@@ -149,15 +255,19 @@ def cum_returns_final(returns, starting_value=0):
 
     Returns
     -------
-    float
-
+    total_returns : float
     """
 
     if len(returns) == 0:
         return np.nan
 
-    return cum_returns(np.asanyarray(returns),
-                       starting_value=starting_value)[-1]
+    returns = np.nanprod(returns + 1)
+    if starting_value == 0:
+        returns -= 1
+    else:
+        returns *= starting_value
+
+    return returns
 
 
 def aggregate_returns(returns, convert_to):
@@ -174,8 +284,7 @@ def aggregate_returns(returns, convert_to):
 
     Returns
     -------
-    pd.Series
-        Aggregated returns.
+    aggregated_returns : pd.Series
     """
 
     def cumulate_returns(x):
@@ -195,7 +304,7 @@ def aggregate_returns(returns, convert_to):
     return returns.groupby(grouping).apply(cumulate_returns)
 
 
-def max_drawdown(returns):
+def max_drawdown(returns, out=None):
     """
     Determines the maximum drawdown of a strategy.
 
@@ -204,27 +313,50 @@ def max_drawdown(returns):
     returns : pd.Series or np.ndarray
         Daily returns of the strategy, noncumulative.
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float
-        Maximum drawdown.
+    max_drawdown : float
 
     Note
     -----
     See https://en.wikipedia.org/wiki/Drawdown_(economics) for more details.
     """
+    allocated_output = out is None
+    if allocated_output:
+        out = np.empty(returns.shape[1:])
+
+    returns_1d = returns.ndim == 1
 
     if len(returns) < 1:
-        return np.nan
+        out[()] = np.nan
+        if returns_1d:
+            out = out.item()
+        return out
 
-    if type(returns) == pd.Series:
-        returns = returns.values
+    returns_array = np.asanyarray(returns)
 
-    cumulative = np.insert(cum_returns(returns, starting_value=100), 0, 100)
-    max_return = np.fmax.accumulate(cumulative)
+    cumulative = np.empty(
+        (returns.shape[0] + 1,) + returns.shape[1:],
+        dtype='float64',
+    )
+    cumulative[0] = start = 100
+    cum_returns(returns_array, starting_value=start, out=cumulative[1:])
 
-    return nanmin((cumulative - max_return) / max_return)
+    max_return = np.fmax.accumulate(cumulative, axis=0)
+
+    nanmin((cumulative - max_return) / max_return, axis=0, out=out)
+    if returns_1d:
+        out = out.item()
+    elif allocated_output and isinstance(returns, pd.DataFrame):
+        out = pd.Series(out)
+
+    return out
+
+
+roll_max_drawdown = _create_unary_vectorized_roll_function(max_drawdown)
 
 
 def annual_return(returns, period=DAILY, annualization=None):
@@ -253,7 +385,7 @@ def annual_return(returns, period=DAILY, annualization=None):
 
     Returns
     -------
-    float
+    annual_return : float
         Annual Return as CAGR (Compounded Annual Growth Rate).
 
     """
@@ -262,11 +394,11 @@ def annual_return(returns, period=DAILY, annualization=None):
         return np.nan
 
     ann_factor = annualization_factor(period, annualization)
-    num_years = len(returns) / float(ann_factor)
+    num_years = len(returns) / ann_factor
     # Pass array to ensure index -1 looks up successfully.
     ending_value = cum_returns_final(returns, starting_value=1)
 
-    return ending_value ** (1. / num_years) - 1
+    return ending_value ** (1 / num_years) - 1
 
 
 def cagr(returns, period=DAILY, annualization=None):
@@ -296,15 +428,21 @@ def cagr(returns, period=DAILY, annualization=None):
 
     Returns
     -------
-    float, np.nan
+    cagr : float
         The CAGR value.
 
     """
     return annual_return(returns, period, annualization)
 
 
-def annual_volatility(returns, period=DAILY, alpha=2.0,
-                      annualization=None):
+roll_cagr = _create_unary_vectorized_roll_function(cagr)
+
+
+def annual_volatility(returns,
+                      period=DAILY,
+                      alpha=2.0,
+                      annualization=None,
+                      out=None):
     """
     Determines the annual volatility of a strategy.
 
@@ -328,18 +466,36 @@ def annual_volatility(returns, period=DAILY, alpha=2.0,
         Used to suppress default values available in `period` to convert
         returns into annual returns. Value should be the annual frequency of
         `returns`.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float
-        Annual volatility.
+    annual_volatility : float
     """
+    allocated_output = out is None
+    if allocated_output:
+        out = np.empty(returns.shape[1:])
+
+    returns_1d = returns.ndim == 1
 
     if len(returns) < 2:
-        return np.nan
+        out[()] = np.nan
+        if returns_1d:
+            out = out.item()
+        return out
 
     ann_factor = annualization_factor(period, annualization)
-    return nanstd(returns, ddof=1) * (ann_factor ** (1.0 / alpha))
+    nanstd(returns, ddof=1, axis=0, out=out)
+    out = np.multiply(out, ann_factor ** (1.0 / alpha), out=out)
+    if returns_1d:
+        out = out.item()
+    return out
+
+
+roll_annual_volatility = _create_unary_vectorized_roll_function(
+    annual_volatility,
+)
 
 
 def calmar_ratio(returns, period=DAILY, annualization=None):
@@ -368,7 +524,7 @@ def calmar_ratio(returns, period=DAILY, annualization=None):
 
     Returns
     -------
-    float
+    calmar_ratio : float
         Calmar ratio (drawdown ratio) as float. Returns np.nan if there is no
         calmar ratio.
 
@@ -416,8 +572,7 @@ def omega_ratio(returns, risk_free=0.0, required_return=0.0,
 
     Returns
     -------
-    float
-        Omega ratio.
+    omega_ratio : float
 
     Note
     -----
@@ -447,7 +602,11 @@ def omega_ratio(returns, risk_free=0.0, required_return=0.0,
         return np.nan
 
 
-def sharpe_ratio(returns, risk_free=0, period=DAILY, annualization=None):
+def sharpe_ratio(returns,
+                 risk_free=0,
+                 period=DAILY,
+                 annualization=None,
+                 out=None):
     """
     Determines the Sharpe ratio of a strategy.
 
@@ -471,38 +630,58 @@ def sharpe_ratio(returns, risk_free=0, period=DAILY, annualization=None):
         Used to suppress default values available in `period` to convert
         returns into annual returns. Value should be the annual frequency of
         `returns`.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float
-        Sharpe ratio.
-
-        np.nan
-            If insufficient length of returns or if if adjusted returns are 0.
+    sharpe_ratio : float
+        nan if insufficient length of returns or if if adjusted returns are 0.
 
     Note
     -----
     See https://en.wikipedia.org/wiki/Sharpe_ratio for more details.
 
     """
+    allocated_output = out is None
+    if allocated_output:
+        out = np.empty(returns.shape[1:])
+
+    return_1d = returns.ndim == 1
 
     if len(returns) < 2:
-        return np.nan
-
-    ann_factor = annualization_factor(period, annualization)
+        out[()] = np.nan
+        if return_1d:
+            out = out.item()
+        return out
 
     returns_risk_adj = np.asanyarray(_adjust_returns(returns, risk_free))
-    returns_risk_adj = returns_risk_adj[~np.isnan(returns_risk_adj)]
+    ann_factor = annualization_factor(period, annualization)
 
-    if nanstd(returns_risk_adj, ddof=1) == 0:
-        return np.nan
+    np.multiply(
+        np.divide(
+            nanmean(returns_risk_adj, axis=0),
+            nanstd(returns_risk_adj, ddof=1, axis=0),
+            out=out,
+        ),
+        np.sqrt(ann_factor),
+        out=out,
+    )
+    if return_1d:
+        out = out.item()
 
-    return nanmean(returns_risk_adj) / nanstd(returns_risk_adj, ddof=1) * \
-        np.sqrt(ann_factor)
+    return out
 
 
-def sortino_ratio(returns, required_return=0, period=DAILY,
-                  annualization=None, _downside_risk=None):
+roll_sharpe_ratio = _create_unary_vectorized_roll_function(sharpe_ratio)
+
+
+def sortino_ratio(returns,
+                  required_return=0,
+                  period=DAILY,
+                  annualization=None,
+                  out=None,
+                  _downside_risk=None):
     """
     Determines the Sortino ratio of a strategy.
 
@@ -529,38 +708,62 @@ def sortino_ratio(returns, required_return=0, period=DAILY,
     _downside_risk : float, optional
         The downside risk of the given inputs, if known. Will be calculated if
         not provided.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float, pd.Series
+    sortino_ratio : float or pd.Series
 
         depends on input type
         series ==> float
         DataFrame ==> pd.Series
 
-        Annualized Sortino ratio.
     Note
     -----
     See `<https://www.sunrisecapital.com/wp-content/uploads/2014/06/Futures_
     Mag_Sortino_0213.pdf>`__ for more details.
 
     """
+    allocated_output = out is None
+    if allocated_output:
+        out = np.empty(returns.shape[1:])
+
+    return_1d = returns.ndim == 1
 
     if len(returns) < 2:
-        return np.nan
+        out[()] = np.nan
+        if return_1d:
+            out = out.item()
+        return out
+
+    adj_returns = np.asanyarray(_adjust_returns(returns, required_return))
 
     ann_factor = annualization_factor(period, annualization)
 
-    adj_returns = _adjust_returns(returns, required_return)
     average_annual_return = nanmean(adj_returns, axis=0) * ann_factor
-    annualized_downside_risk = (_downside_risk if _downside_risk is not None
-                                else downside_risk(returns, required_return,
-                                                   period, annualization))
-    return average_annual_return / annualized_downside_risk
+    annualized_downside_risk = (
+        _downside_risk
+        if _downside_risk is not None else
+        downside_risk(returns, required_return, period, annualization)
+    )
+    np.divide(average_annual_return, annualized_downside_risk, out=out)
+    if return_1d:
+        out = out.item()
+    elif isinstance(returns, pd.DataFrame):
+        out = pd.Series(out)
+
+    return out
 
 
-def downside_risk(returns, required_return=0, period=DAILY,
-                  annualization=None):
+roll_sortino_ratio = _create_unary_vectorized_roll_function(sortino_ratio)
+
+
+def downside_risk(returns,
+                  required_return=0,
+                  period=DAILY,
+                  annualization=None,
+                  out=None):
     """
     Determines the downside deviation below a threshold
 
@@ -584,41 +787,61 @@ def downside_risk(returns, required_return=0, period=DAILY,
         Used to suppress default values available in `period` to convert
         returns into annual returns. Value should be the annual frequency of
         `returns`.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float, pd.Series
+    downside_deviation : float or pd.Series
         depends on input type
         series ==> float
         DataFrame ==> pd.Series
 
-        Annualized downside deviation
     Note
     -----
     See `<https://www.sunrisecapital.com/wp-content/uploads/2014/06/Futures_
     Mag_Sortino_0213.pdf>`__ for more details, specifically why using the
     standard deviation of the negative returns is not correct.
-
     """
+    allocated_output = out is None
+    if allocated_output:
+        out = np.empty(returns.shape[1:])
+
+    returns_1d = returns.ndim == 1
 
     if len(returns) < 1:
-        return np.nan
+        out[()] = np.nan
+        if returns_1d:
+            out = out.item()
+        return out
 
     ann_factor = annualization_factor(period, annualization)
 
-    downside_diff = _adjust_returns(returns, required_return).copy()
-    mask = downside_diff > 0
-    downside_diff[mask] = 0.0
-    squares = np.square(downside_diff)
-    mean_squares = nanmean(squares, axis=0)
-    dside_risk = np.sqrt(mean_squares) * np.sqrt(ann_factor)
+    downside_diff = np.clip(
+        _adjust_returns(
+            np.asanyarray(returns),
+            np.asanyarray(required_return),
+        ),
+        np.NINF,
+        0,
+    )
 
-    if len(returns.shape) == 2 and isinstance(returns, pd.DataFrame):
-        dside_risk = pd.Series(dside_risk, index=returns.columns)
-    return dside_risk
+    np.square(downside_diff, out=downside_diff)
+    nanmean(downside_diff, axis=0, out=out)
+    np.sqrt(out, out=out)
+    np.multiply(out, np.sqrt(ann_factor), out=out)
+
+    if returns_1d:
+        out = out.item()
+    elif isinstance(returns, pd.DataFrame):
+        out = pd.Series(out, index=returns.columns)
+    return out
 
 
-def excess_sharpe(returns, factor_returns):
+roll_downsize_risk = _create_unary_vectorized_roll_function(downside_risk)
+
+
+def excess_sharpe(returns, factor_returns, out=None):
     """
     Determines the Excess Sharpe of a strategy.
 
@@ -629,28 +852,44 @@ def excess_sharpe(returns, factor_returns):
         - See full explanation in :func:`~empyrical.stats.cum_returns`.
     factor_returns: float / series
         Benchmark return to compare returns against.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float
-        The excess sharpe.
+    excess_sharpe : float
 
     Note
     -----
     The excess Sharpe is a simplified Information Ratio that uses
     tracking error rather than "active risk" as the denominator.
-
     """
+    allocated_output = out is None
+    if allocated_output:
+        out = np.empty(returns.shape[1:])
+
+    returns_1d = returns.ndim == 1
+
     if len(returns) < 2:
-        return np.nan
+        out[()] = np.nan
+        if returns_1d:
+            out = out.item()
+        return out
 
     active_return = _adjust_returns(returns, factor_returns)
-    tracking_error = nanstd(active_return, ddof=1)
-    if np.isnan(tracking_error):
-        return 0.0
-    if tracking_error == 0:
-        return np.nan
-    return nanmean(active_return) / tracking_error
+    tracking_error = np.nan_to_num(nanstd(active_return, ddof=1, axis=0))
+
+    out = np.divide(
+        nanmean(active_return, axis=0, out=out),
+        tracking_error,
+        out=out,
+    )
+    if returns_1d:
+        out = out.item()
+    return out
+
+
+roll_excess_sharpe = _create_binary_vectorized_roll_function(excess_sharpe)
 
 
 def _aligned_series(*many_series):
@@ -660,22 +899,37 @@ def _aligned_series(*many_series):
 
     Parameters
     ----------
-    many_series : list[pd.Series]
+    *many_series
+        The series to align.
 
     Returns
     -------
-    aligned_series : list[pd.Series]
-
+    aligned_series : iterable[array-like]
         A new list of series containing the data in the input series, but
         with their indices aligned. NaNs will be filled in for missing values.
 
     """
-    return [series
-            for col, series in iteritems(pd.concat(many_series, axis=1))]
+    head = many_series[0]
+    tail = many_series[1:]
+    n = len(head)
+    if (isinstance(head, np.ndarray) and
+            all(len(s) == n and isinstance(s, np.ndarray) for s in tail)):
+        # optimization: ndarrays of the same length are already aligned
+        return many_series
+
+    # dataframe has no ``itervalues``
+    return (
+        v
+        for _, v in iteritems(pd.concat(map(pd.Series, many_series), axis=1))
+    )
 
 
-def alpha_beta(returns, factor_returns, risk_free=0.0, period=DAILY,
-               annualization=None):
+def alpha_beta(returns,
+               factor_returns,
+               risk_free=0.0,
+               period=DAILY,
+               annualization=None,
+               out=None):
     """Calculates annualized alpha and beta.
 
     Parameters
@@ -703,25 +957,59 @@ def alpha_beta(returns, factor_returns, risk_free=0.0, period=DAILY,
         Used to suppress default values available in `period` to convert
         returns into annual returns. Value should be the annual frequency of
         `returns`.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float
-        Alpha.
-    float
-        Beta.
-
+    alpha : float
+    beta : float
     """
-    if len(returns) < 2 or len(factor_returns) < 2:
-        return np.nan, np.nan
+    returns, factor_returns = _aligned_series(returns, factor_returns)
 
-    return alpha_beta_aligned(*_aligned_series(returns, factor_returns),
-                              risk_free=risk_free, period=period,
-                              annualization=annualization)
+    return alpha_beta_aligned(
+        returns,
+        factor_returns,
+        risk_free=risk_free,
+        period=period,
+        annualization=annualization,
+        out=out,
+    )
 
 
-def alpha_beta_aligned(returns, factor_returns, risk_free=0.0, period=DAILY,
-                       annualization=None):
+def roll_alpha_beta(returns, factor_returns, window=10, **kwargs):
+    """
+    Computes alpha and beta over a rolling window.
+
+    Parameters
+    ----------
+    lhs : array-like
+        The first array to pass to the rolling alpha-beta.
+    rhs : array-like
+        The second array to pass to the rolling alpha-beta.
+    window : int
+        Size of the rolling window in terms of the periodicity of the data.
+    out : array-like, optional
+        The array to store the store the output.
+    **kwargs
+        Forwarded to :func:`~empyrical.alpha_beta`.
+    """
+    returns, factor_returns = _aligned_series(returns, factor_returns)
+
+    return roll_alpha_beta_aligned(
+        returns,
+        factor_returns,
+        window=window,
+        **kwargs
+    )
+
+
+def alpha_beta_aligned(returns,
+                       factor_returns,
+                       risk_free=0.0,
+                       period=DAILY,
+                       annualization=None,
+                       out=None):
     """Calculates annualized alpha and beta.
 
     If they are pd.Series, expects returns and factor_returns have already
@@ -753,22 +1041,43 @@ def alpha_beta_aligned(returns, factor_returns, risk_free=0.0, period=DAILY,
         Used to suppress default values available in `period` to convert
         returns into annual returns. Value should be the annual frequency of
         `returns`.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float
-        Alpha.
-    float
-        Beta.
+    alpha : float
+    beta : float
     """
-    b = beta_aligned(returns, factor_returns, risk_free)
-    a = alpha_aligned(returns, factor_returns, risk_free, period,
-                      annualization, _beta=b)
-    return a, b
+    if out is None:
+        out = np.empty(returns.shape[1:] + (2,), dtype='float64')
+
+    b = beta_aligned(returns, factor_returns, risk_free, out=out[..., 1])
+    alpha_aligned(
+        returns,
+        factor_returns,
+        risk_free,
+        period,
+        annualization,
+        out=out[..., 0],
+        _beta=b,
+    )
+
+    return out
 
 
-def alpha(returns, factor_returns, risk_free=0.0, period=DAILY,
-          annualization=None, _beta=None):
+roll_alpha_beta_aligned = _create_binary_vectorized_roll_function(
+    alpha_beta_aligned,
+)
+
+
+def alpha(returns,
+          factor_returns,
+          risk_free=0.0,
+          period=DAILY,
+          annualization=None,
+          out=None,
+          _beta=None):
     """Calculates annualized alpha.
 
     Parameters
@@ -800,22 +1109,39 @@ def alpha(returns, factor_returns, risk_free=0.0, period=DAILY,
     _beta : float, optional
         The beta for the given inputs, if already known. Will be calculated
         internally if not provided.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
     float
         Alpha.
     """
-    if len(returns) < 2 or len(factor_returns) < 2:
-        return np.nan
+    if not (isinstance(returns, np.ndarray) and
+            isinstance(factor_returns, np.ndarray)):
+        returns, factor_returns = _aligned_series(returns, factor_returns)
 
-    return alpha_aligned(*_aligned_series(returns, factor_returns),
-                         risk_free=risk_free, period=period,
-                         annualization=annualization, _beta=_beta)
+    return alpha_aligned(
+        returns,
+        factor_returns,
+        risk_free=risk_free,
+        period=period,
+        annualization=annualization,
+        out=out,
+        _beta=_beta
+    )
 
 
-def alpha_aligned(returns, factor_returns, risk_free=0.0, period=DAILY,
-                  annualization=None, _beta=None):
+roll_alpha = _create_binary_vectorized_roll_function(alpha)
+
+
+def alpha_aligned(returns,
+                  factor_returns,
+                  risk_free=0.0,
+                  period=DAILY,
+                  annualization=None,
+                  out=None,
+                  _beta=None):
     """Calculates annualized alpha.
 
     If they are pd.Series, expects returns and factor_returns have already
@@ -851,14 +1177,22 @@ def alpha_aligned(returns, factor_returns, risk_free=0.0, period=DAILY,
     _beta : float, optional
         The beta for the given inputs, if already known. Will be calculated
         internally if not provided.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float
-        Alpha.
+    alpha : float
     """
+    allocated_output = out is None
+    if allocated_output:
+        out = np.empty(returns.shape[1:], dtype='float64')
+
     if len(returns) < 2:
-        return np.nan
+        out[()] = np.nan
+        if returns.ndim == 1:
+            out = out.item()
+        return out
 
     ann_factor = annualization_factor(period, annualization)
 
@@ -869,10 +1203,25 @@ def alpha_aligned(returns, factor_returns, risk_free=0.0, period=DAILY,
     adj_factor_returns = _adjust_returns(factor_returns, risk_free)
     alpha_series = adj_returns - (_beta * adj_factor_returns)
 
-    return nanmean(alpha_series) * ann_factor
+    out = np.multiply(
+        nanmean(alpha_series, axis=0, out=out),
+        ann_factor,
+        out=out,
+    )
+
+    if allocated_output and isinstance(returns, pd.DataFrame):
+        out = pd.Series(out)
+
+    if returns.ndim == 1:
+        out = out.item()
+
+    return out
 
 
-def beta(returns, factor_returns, risk_free=0.0):
+roll_alpha_aligned = _create_binary_vectorized_roll_function(alpha_aligned)
+
+
+def beta(returns, factor_returns, risk_free=0.0, out=None):
     """Calculates beta.
 
     Parameters
@@ -887,20 +1236,29 @@ def beta(returns, factor_returns, risk_free=0.0):
     risk_free : int, float, optional
         Constant risk-free return throughout the period. For example, the
         interest rate on a three month us treasury bill.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float
-        Beta.
+    beta : float
     """
-    if len(returns) < 2 or len(factor_returns) < 2:
-        return np.nan
+    if not (isinstance(returns, np.ndarray) and
+            isinstance(factor_returns, np.ndarray)):
+        returns, factor_returns = _aligned_series(returns, factor_returns)
 
-    return beta_aligned(*_aligned_series(returns, factor_returns),
-                        risk_free=risk_free)
+    return beta_aligned(
+        returns,
+        factor_returns,
+        risk_free=risk_free,
+        out=out,
+    )
 
 
-def beta_aligned(returns, factor_returns, risk_free=0.0):
+roll_beta = _create_binary_vectorized_roll_function(beta)
+
+
+def beta_aligned(returns, factor_returns, risk_free=0.0, out=None):
     """Calculates beta.
 
     If they are pd.Series, expects returns and factor_returns have already
@@ -919,28 +1277,103 @@ def beta_aligned(returns, factor_returns, risk_free=0.0):
     risk_free : int, float, optional
         Constant risk-free return throughout the period. For example, the
         interest rate on a three month us treasury bill.
+    out : array-like, optional
+        The array to store the store the output.
 
     Returns
     -------
-    float
+    beta : float
         Beta.
     """
+    # Cache these as locals since we're going to call them multiple times.
+    nan = np.nan
+    isnan = np.isnan
 
-    if len(returns) < 2 or len(factor_returns) < 2:
-        return np.nan
-    # Filter out dates with np.nan as a return value
-    joint = np.vstack([_adjust_returns(returns, risk_free),
-                       factor_returns])
-    joint = joint[:, ~np.isnan(joint).any(axis=0)]
-    if joint.shape[1] < 2:
-        return np.nan
+    returns_1d = returns.ndim == 1
+    if returns_1d:
+        returns = returns[:, np.newaxis]
 
-    cov = np.cov(joint, ddof=0)
+    if factor_returns.ndim == 1:
+        factor_returns = factor_returns[:, np.newaxis]
 
-    if np.absolute(cov[1, 1]) < 1.0e-30:
-        return np.nan
+    N, M = returns.shape
 
-    return cov[0, 1] / cov[1, 1]
+    if out is None:
+        out = np.full(M, nan)
+    elif out.ndim == 0:
+        out = out[np.newaxis]
+
+    if len(returns) < 1 or len(factor_returns) < 2:
+        out[()] = nan
+        if returns_1d:
+            out = out.item()
+        return out
+
+    # Copy N times as a column vector and fill with nans to have the same
+    # missing value pattern as the dependent variable.
+    #
+    # PERF_TODO: We could probably avoid the space blowup by doing this in
+    # Cython.
+
+    # shape: (N, M)
+    independent = np.where(
+        isnan(returns),
+        nan,
+        factor_returns,
+    )
+
+    # Calculate beta as Cov(X, Y) / Cov(X, X).
+    # https://en.wikipedia.org/wiki/Simple_linear_regression#Fitting_the_regression_line  # noqa
+    #
+    # NOTE: The usual formula for covariance is::
+    #
+    #    mean((X - mean(X)) * (Y - mean(Y)))
+    #
+    # However, we don't actually need to take the mean of both sides of the
+    # product, because of the folllowing equivalence::
+    #
+    # Let X_res = (X - mean(X)).
+    # We have:
+    #
+    #     mean(X_res * (Y - mean(Y))) = mean(X_res * (Y - mean(Y)))
+    #                             (1) = mean((X_res * Y) - (X_res * mean(Y)))
+    #                             (2) = mean(X_res * Y) - mean(X_res * mean(Y))
+    #                             (3) = mean(X_res * Y) - mean(X_res) * mean(Y)
+    #                             (4) = mean(X_res * Y) - 0 * mean(Y)
+    #                             (5) = mean(X_res * Y)
+    #
+    #
+    # The tricky step in the above derivation is step (4). We know that
+    # mean(X_res) is zero because, for any X:
+    #
+    #     mean(X - mean(X)) = mean(X) - mean(X) = 0.
+    #
+    # The upshot of this is that we only have to center one of `independent`
+    # and `dependent` when calculating covariances. Since we need the centered
+    # `independent` to calculate its variance in the next step, we choose to
+    # center `independent`.
+
+    ind_residual = independent - nanmean(independent, axis=0)
+
+    covariances = nanmean(ind_residual * returns, axis=0)
+
+    # We end up with different variances in each column here because each
+    # column may have a different subset of the data dropped due to missing
+    # data in the corresponding dependent column.
+    # shape: (M,)
+    np.square(ind_residual, out=ind_residual)
+    independent_variances = nanmean(ind_residual, axis=0)
+    independent_variances[independent_variances < 1.0e-30] = np.nan
+
+    np.divide(covariances, independent_variances, out=out)
+
+    if returns_1d:
+        out = out.item()
+
+    return out
+
+
+roll_beta_aligned = _create_binary_vectorized_roll_function(beta_aligned)
 
 
 def stability_of_timeseries(returns):
@@ -987,9 +1420,7 @@ def tail_ratio(returns):
 
     Returns
     -------
-    float
-        tail ratio
-
+    tail_ratio : float
     """
 
     if len(returns) < 1:
@@ -1029,8 +1460,7 @@ def capture(returns, factor_returns, period=DAILY):
 
     Returns
     -------
-    float, np.nan
-        The capture ratio.
+    capture_ratio : float
 
     Note
     ----
@@ -1065,7 +1495,7 @@ def up_capture(returns, factor_returns, **kwargs):
 
     Returns
     -------
-    float, np.nan
+    up_capture : float
 
     Note
     ----
@@ -1099,7 +1529,7 @@ def down_capture(returns, factor_returns, **kwargs):
 
     Returns
     -------
-    float, np.nan
+    down_capture : float
 
     Note
     ----
@@ -1133,7 +1563,7 @@ def up_down_capture(returns, factor_returns, **kwargs):
 
     Returns
     -------
-    float
+    up_down_capture : float
         the updown capture ratio
     """
     return (up_capture(returns, factor_returns, **kwargs) /
@@ -1168,10 +1598,8 @@ def down_alpha_beta(returns, factor_returns, **kwargs):
 
     Returns
     -------
-    float
-        Alpha.
-    float
-        Beta.
+    alpha : float
+    beta : float
     """
     return down(returns, factor_returns, function=alpha_beta_aligned, **kwargs)
 
@@ -1249,56 +1677,6 @@ def roll_up_down_capture(returns, factor_returns, window=10, **kwargs):
     """
     return roll(returns, factor_returns, window=window,
                 function=up_down_capture, **kwargs)
-
-
-def roll_max_drawdown(returns, window=10, **kwargs):
-    """
-    Computes the max_drawdown measure over a rolling window.
-    see documentation for :func:`~empyrical.stats.max_drawdown`.
-    (pass all args, kwargs required)
-
-    Parameters
-    ----------
-    returns : pd.Series or np.ndarray
-        Daily returns of the strategy, noncumulative.
-        - See full explanation in :func:`~empyrical.stats.cum_returns`.
-
-    window : int, required
-        Size of the rolling window in terms of the periodicity of the data.
-        - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
-    """
-    return roll(returns, window=window, function=max_drawdown, **kwargs)
-
-
-def roll_alpha_beta(returns, factor_returns, window=10, **kwargs):
-    """
-    Computes the alpha_beta measure over a rolling window.
-
-    Parameters
-    ----------
-    see documentation for `alpha_beta` (pass all args, kwargs required)
-
-    window : int, required
-        Size of the rolling window in terms of the periodicity of the data.
-        - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
-    """
-    return roll(returns, factor_returns, window=window,
-                function=alpha_beta_aligned, **kwargs)
-
-
-def roll_sharpe_ratio(returns, window=10, **kwargs):
-    """
-    Computes the sharpe ratio measure over a rolling window.
-
-    Parameters
-    ----------
-    see documentation for `sharpe_ratio` (pass all args, kwargs required)
-
-    window : int, required
-        Size of the rolling window in terms of the periodicity of the data.
-        - eg window = 60, periodicity=DAILY, represents a rolling 60 day window
-    """
-    return roll(returns, window=window, function=sharpe_ratio, **kwargs)
 
 
 def value_at_risk(returns, cutoff=0.05):

@@ -202,20 +202,26 @@ class TestStats(TestCase):
         (simple_benchmark, 0.0),
         (mixed_returns, -0.1),
         (positive_returns, -0.0),
-        (negative_returns, -0.36590730349873601),
-        (all_negative_returns, -0.3785891574287616),
-        (pd.Series(
-            np.array([10, -10, 10]) / 100,
-            index=pd.date_range('2000-1-30', periods=3, freq='D')),
-            -0.10)
+
+        # negative returns means the drawdown is just the returns
+        (negative_returns, empyrical.cum_returns_final(negative_returns)),
+        (all_negative_returns,
+         empyrical.cum_returns_final(all_negative_returns)),
+
+        (
+            pd.Series(
+                np.array([10, -10, 10]) / 100,
+                index=pd.date_range('2000-1-30', periods=3, freq='D'),
+            ),
+            -0.10,
+        ),
     ])
     def test_max_drawdown(self, returns, expected):
         assert_almost_equal(
-            self.empyrical.max_drawdown(
-                returns
-            ),
+            self.empyrical.max_drawdown(returns),
             expected,
-            DECIMAL_PLACES)
+            DECIMAL_PLACES,
+        )
 
     # Maximum drawdown is always less than or equal to zero. Translating
     # returns by a positive constant should increase the maximum
@@ -686,7 +692,7 @@ class TestStats(TestCase):
     def test_alpha_beta(self, returns, benchmark, expected):
         alpha, beta = self.empyrical(
             pandas_only=len(returns) != len(benchmark),
-            return_types=tuple,
+            return_types=np.ndarray,
         ).alpha_beta(returns, benchmark)
         assert_almost_equal(
             alpha,
@@ -749,7 +755,7 @@ class TestStats(TestCase):
         # Translate returns and generate alphas and betas.
         returns_depressed = returns-translation
         returns_raised = returns+translation
-        alpha_beta = self.empyrical(return_types=tuple).alpha_beta
+        alpha_beta = self.empyrical(return_types=np.ndarray).alpha_beta
         (alpha_depressed, beta_depressed) = alpha_beta(
             returns_depressed, benchmark)
         (alpha_standard, beta_standard) = alpha_beta(
@@ -803,7 +809,7 @@ class TestStats(TestCase):
         returns_more = pd.Series(ret_more, index=index)
         benchmark_more = pd.Series(bench_more, index=index)
         # Calculate alpha/beta values
-        alpha_beta = self.empyrical(return_types=tuple).alpha_beta
+        alpha_beta = self.empyrical(return_types=np.ndarray).alpha_beta
         alpha_less, beta_less = alpha_beta(returns_less, benchmark_less)
         alpha_more, beta_more = alpha_beta(returns_more, benchmark_more)
         # Alpha determines by how much returns vary from the benchmark return.
@@ -819,8 +825,10 @@ class TestStats(TestCase):
         (sparse_noise, sparse_noise),
     ])
     def test_alpha_beta_with_nan_inputs(self, returns, benchmark):
-        alpha, beta = self.empyrical(return_types=tuple).alpha_beta(returns,
-                                                                    benchmark)
+        alpha, beta = self.empyrical(return_types=np.ndarray).alpha_beta(
+            returns,
+            benchmark,
+        )
         self.assertFalse(np.isnan(alpha))
         self.assertFalse(np.isnan(beta))
 
@@ -865,7 +873,7 @@ class TestStats(TestCase):
     def test_alpha_beta_equality(self, returns, benchmark):
         alpha, beta = self.empyrical(
             pandas_only=len(returns) != len(benchmark),
-            return_types=tuple,
+            return_types=np.ndarray,
         ).alpha_beta(returns, benchmark)
         assert_almost_equal(
             alpha,
@@ -874,7 +882,8 @@ class TestStats(TestCase):
         assert_almost_equal(
             beta,
             self.empyrical.beta(returns, benchmark),
-            DECIMAL_PLACES)
+            DECIMAL_PLACES
+        )
 
         if len(returns) == len(benchmark):
             # Compare to scipy linregress
@@ -1026,7 +1035,9 @@ class TestStats(TestCase):
             DECIMAL_PLACES)
 
     @parameterized.expand([
-        (empty_returns, simple_benchmark, 1, []),
+        (empty_returns, simple_benchmark,
+         1,
+         [(np.nan, np.nan)] * len(simple_benchmark)),
         (one_return, one_return, 1, [(np.nan, np.nan)]),
         (mixed_returns, negative_returns,
          6, [(-3.81286957, -0.7826087), (-4.03558719, -0.76156584),
@@ -1034,11 +1045,20 @@ class TestStats(TestCase):
         (mixed_returns, mixed_returns,
          6, [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]),
         (mixed_returns, -mixed_returns,
-         6, [(0.0, -1.0), (0.0, -1.0), (0.0, -1.0), (0.0, -1.0)]),
+         6,
+         [(0.0, -1.0), (0.0, -1.0), (0.0, -1.0), (0.0, -1.0)]),
     ])
     def test_roll_alpha_beta(self, returns, benchmark, window, expected):
+        test = self.empyrical(
+            return_types=(np.ndarray, pd.DataFrame),
+        ).roll_alpha_beta(
+            returns,
+            benchmark,
+            window,
+        )
+        if isinstance(test, pd.DataFrame):
+            test = test.values
 
-        test = self.empyrical.roll_alpha_beta(returns, benchmark, window)
         alpha_test = [t[0] for t in test]
         beta_test = [t[1] for t in test]
 
@@ -1046,14 +1066,16 @@ class TestStats(TestCase):
         beta_expected = [t[1] for t in expected]
 
         assert_almost_equal(
-            alpha_test,
-            alpha_expected,
-            DECIMAL_PLACES)
+            np.asarray(alpha_test),
+            np.asarray(alpha_expected),
+            DECIMAL_PLACES,
+        )
 
         assert_almost_equal(
-            beta_test,
-            beta_expected,
-            DECIMAL_PLACES)
+            np.asarray(beta_test),
+            np.asarray(beta_expected),
+            DECIMAL_PLACES,
+        )
 
     @parameterized.expand([
         (empty_returns, empty_returns, 1, []),
@@ -1121,7 +1143,7 @@ class TestStats(TestCase):
     def test_down_alpha_beta(self, returns, benchmark, expected):
         down_alpha, down_beta = self.empyrical(
             pandas_only=len(returns) != len(benchmark),
-            return_types=tuple,
+            return_types=np.ndarray,
         ).down_alpha_beta(returns, benchmark)
         assert_almost_equal(
             down_alpha,
@@ -1143,7 +1165,7 @@ class TestStats(TestCase):
     def test_up_alpha_beta(self, returns, benchmark, expected):
         up_alpha, up_beta = self.empyrical(
             pandas_only=len(returns) != len(benchmark),
-            return_types=tuple,
+            return_types=np.ndarray,
         ).up_alpha_beta(returns, benchmark)
         assert_almost_equal(
             up_alpha,
@@ -1401,8 +1423,11 @@ class Test2DStats(TestCase):
             starting_value=starting_value,
         )
 
-        assert_almost_equal(np.asarray(cum_returns),
-                            np.asarray(expected), 4)
+        assert_almost_equal(
+            np.asarray(cum_returns),
+            np.asarray(expected),
+            4,
+        )
 
     @property
     def empyrical(self):
@@ -1472,7 +1497,13 @@ class ReturnTypeEmpyricalProxy(object):
         @wraps(func)
         def check_return_type(*args, **kwargs):
             result = func(*args, **kwargs)
-            self._test_case.assertIsInstance(result, self._return_types)
+            if isinstance(result, tuple):
+                tuple_result = result
+            else:
+                tuple_result = (result,)
+
+            for r in tuple_result:
+                self._test_case.assertIsInstance(r, self._return_types)
             return result
 
         return check_return_type
