@@ -1,2 +1,3 @@
 include versioneer.py
 include empyrical/_version.py
+include LICENSE
