@@ -49,7 +49,11 @@ def _create_unary_vectorized_roll_function(function):
         allocated_output = out is None
 
         if len(arr):
-            out = function(rolling_window(arr, window).T, out=out, **kwargs)
+            out = function(
+                rolling_window(arr, min(len(arr), window)).T,
+                out=out,
+                **kwargs
+            )
         else:
             out = np.empty(0, dtype='float64')
 
@@ -93,8 +97,8 @@ def _create_binary_vectorized_roll_function(function):
 
         if window >= 1 and len(lhs) and len(rhs):
             out = function(
-                rolling_window(lhs, window).T,
-                rolling_window(rhs, window).T,
+                rolling_window(lhs, min(len(lhs), window)).T,
+                rolling_window(rhs, min(len(rhs), window)).T,
                 out=out,
                 **kwargs
             )
