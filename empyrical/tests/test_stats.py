@@ -36,6 +36,10 @@ class BaseTestCase(TestCase):
         """
         assert_index_equal(result.index, expected.index)
 
+        if isinstance(result, pd.DataFrame) and \
+           isinstance(expected, pd.DataFrame):
+            assert_index_equal(result.columns, expected.columns)
+
 
 class TestStats(BaseTestCase):
 
