@@ -411,7 +411,6 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
         px = web.get_data_yahoo(symbol, start=start, end=end)
         px['date'] = pd.to_datetime(px['date'])
         px.set_index('date', drop=False, inplace=True)
-        # rets = px[['Adj Close']].pct_change().dropna()
         rets = px[['adjclose']].pct_change().dropna()
     except Exception as e:
         warnings.warn(
@@ -423,6 +422,7 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     rets.index = rets.index.tz_localize("UTC")
     rets.columns = [symbol]
     return rets
+
 
 def default_returns_func(symbol, start=None, end=None):
     """
