@@ -415,7 +415,7 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     """
 
     try:
-        px = web.get_data_quandl(symbol, start=start, end=end)
+        px = web.get_data_yahoo(symbol, start=start, end=end)
         px['date'] = pd.to_datetime(px['date'])
         px.set_index('date', drop=False, inplace=True)
         rets = px[['adjclose']].pct_change().dropna()
