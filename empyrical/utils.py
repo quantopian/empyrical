@@ -24,10 +24,12 @@ from numpy.lib.stride_tricks import as_strided
 import pandas as pd
 from pandas.tseries.offsets import BDay
 from pandas_datareader import data as web
+from .deprecate import deprecated
 
 YAHOO_DEPRECATION_WARNING = ("Yahoo API no longer supports automated calls. "
-                             "For now, use Quandl API instead. Don't forget to "
-                             "set QUANDL_API_KEY in your environment.")
+                             "For now, use Quandl API instead. Don't "
+                             "forget to set QUANDL_API_KEY in your "
+                             "environment.")
 
 try:
     # fast versions
@@ -389,6 +391,7 @@ def get_treasury_yield(start=None, end=None, period='3MO'):
 
     return treasury
 
+
 @deprecated(msg=YAHOO_DEPRECATION_WARNING)
 def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     """
@@ -500,10 +503,7 @@ def default_returns_func(symbol, start=None, end=None):
                                   symbol='SPY',
                                   start=start,
                                   end=datetime.now())
-        try:
-            rets = rets[rets.index.isin(pd.bdate_range(start, end))]
-        except Exception as e:
-            rets = rets[start:end]
+        rets = rets[rets.index.isin(pd.bdate_range(start, end))]
     else:
         rets = get_symbol_returns_from_quandl(symbol, start=start, end=end)
     rets.sort_index(inplace=True)
