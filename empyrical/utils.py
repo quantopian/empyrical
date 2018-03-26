@@ -386,10 +386,10 @@ def get_treasury_yield(start=None, end=None, period='3MO'):
     return treasury
 
 
-def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
+def get_symbol_returns_from_quandl(symbol, start=None, end=None):
     """
-    Wrapper for pandas.io.data.get_data_yahoo().
-    Retrieves prices for symbol from yahoo and computes returns
+    Wrapper for pandas.io.data.get_data_quandl().
+    Retrieves prices for symbol from quandl and computes returns
     based on adjusted closing prices.
 
     Parameters
@@ -407,18 +407,13 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
         Returns of symbol in requested period.
     """
 
-    try:
-        px = web.get_data_yahoo(symbol, start=start, end=end)
-        px['date'] = pd.to_datetime(px['date'])
-        px.set_index('date', drop=False, inplace=True)
-        rets = px[['adjclose']].pct_change().dropna()
-    except Exception as e:
-        warnings.warn(
-            'Yahoo Finance read failed: {}, falling back to Google'.format(e),
-            UserWarning)
-        px = web.get_data_google(symbol, start=start, end=end)
-        rets = px[['Close']].pct_change().dropna()
-
+    px = web.get_data_quandl(symbol, start=start, end=end)
+    rets = px[['AdjClose']]
+    rets = rets.shift(-1)
+    rets.iloc[-1]['AdjClose'] = px.tail(1)['AdjOpen']
+    rets = rets.shift(1) / rets - 1
+    rets = rets.dropna()
+    rets.index = rets.index.to_datetime()
     rets.index = rets.index.tz_localize("UTC")
     rets.columns = [symbol]
     return rets
@@ -427,7 +422,7 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
 def default_returns_func(symbol, start=None, end=None):
     """
     Gets returns for a symbol.
-    Queries Yahoo Finance. Attempts to cache SPY.
+    Queries Quandl Finance. Attempts to cache SPY.
 
     Parameters
     ----------
@@ -458,15 +453,18 @@ def default_returns_func(symbol, start=None, end=None):
     if symbol == 'SPY':
         filepath = data_path('spy.csv')
         rets = get_returns_cached(filepath,
-                                  get_symbol_returns_from_yahoo,
+                                  get_symbol_returns_from_quandl,
                                   end,
                                   symbol='SPY',
-                                  start='1/1/1970',
+                                  start=start,
                                   end=datetime.now())
-        rets = rets[start:end]
+        try:
+            rets = rets[rets.index.isin(pd.bdate_range(start, end))]
+        except Exception as e:
+            rets = rets[start:end]
     else:
-        rets = get_symbol_returns_from_yahoo(symbol, start=start, end=end)
-
+        rets = get_symbol_returns_from_quandl(symbol, start=start, end=end)
+    rets.sort_index(inplace=True)
     return rets[symbol]
 
 
