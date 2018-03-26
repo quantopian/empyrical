@@ -25,6 +25,10 @@ import pandas as pd
 from pandas.tseries.offsets import BDay
 from pandas_datareader import data as web
 
+YAHOO_DEPRECATION_WARNING = ("Yahoo API no longer supports automated calls. "
+                             "For now, use Quandl API instead. Don't forget to "
+                             "set QUANDL_API_KEY in your environment.")
+
 try:
     # fast versions
     import bottleneck as bn
@@ -384,6 +388,44 @@ def get_treasury_yield(start=None, end=None, period='3MO'):
     treasury = treasury.ffill()
 
     return treasury
+
+@deprecated(msg=YAHOO_DEPRECATION_WARNING)
+def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
+    """
+    Wrapper for pandas.io.data.get_data_yahoo().
+    Retrieves prices for symbol from yahoo and computes returns
+    based on adjusted closing prices.
+
+    Parameters
+    ----------
+    symbol : str
+        Symbol name to load, e.g. 'SPY'
+    start : pandas.Timestamp compatible, optional
+        Start date of time period to retrieve
+    end : pandas.Timestamp compatible, optional
+        End date of time period to retrieve
+
+    Returns
+    -------
+    pandas.DataFrame
+        Returns of symbol in requested period.
+    """
+
+    try:
+        px = web.get_data_quandl(symbol, start=start, end=end)
+        px['date'] = pd.to_datetime(px['date'])
+        px.set_index('date', drop=False, inplace=True)
+        rets = px[['adjclose']].pct_change().dropna()
+    except Exception as e:
+        warnings.warn(
+            'Yahoo Finance read failed: {}, falling back to Google'.format(e),
+            UserWarning)
+        px = web.get_data_google(symbol, start=start, end=end)
+        rets = px[['Close']].pct_change().dropna()
+
+    rets.index = rets.index.tz_localize("UTC")
+    rets.columns = [symbol]
+    return rets
 
 
 def get_symbol_returns_from_quandl(symbol, start=None, end=None):
