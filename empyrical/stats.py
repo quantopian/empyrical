@@ -906,6 +906,32 @@ def excess_sharpe(returns, factor_returns, out=None):
 roll_excess_sharpe = _create_binary_vectorized_roll_function(excess_sharpe)
 
 
+def _to_pandas(ob):
+    """Convert an array-like to a pandas object.
+
+    Parameters
+    ----------
+    ob : array-like
+        The object to convert.
+
+    Returns
+    -------
+    pandas_structure : pd.Series or pd.DataFrame
+        The correct structure based on the dimensionality of the data.
+    """
+    if isinstance(ob, (pd.Series, pd.DataFrame)):
+        return ob
+
+    if ob.ndim == 1:
+        return pd.Series(ob)
+    elif ob.ndim == 2:
+        return pd.DataFrame(ob)
+    else:
+        raise ValueError(
+            'cannot convert array of dim > 2 to a pandas structure',
+        )
+
+
 def _aligned_series(*many_series):
     """
     Return a new list of series containing the data in the input series, but
@@ -934,7 +960,7 @@ def _aligned_series(*many_series):
     # dataframe has no ``itervalues``
     return (
         v
-        for _, v in iteritems(pd.concat(map(pd.Series, many_series), axis=1))
+        for _, v in iteritems(pd.concat(map(_to_pandas, many_series), axis=1))
     )
 
 
