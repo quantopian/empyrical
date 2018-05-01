@@ -2,7 +2,6 @@ from __future__ import division
 
 from copy import copy
 from operator import attrgetter
-import random
 from unittest import TestCase, SkipTest
 
 from parameterized import parameterized
@@ -25,6 +24,9 @@ import empyrical.utils as emutils
 DECIMAL_PLACES = 8
 
 
+rand = np.random.RandomState(1337)
+
+
 class BaseTestCase(TestCase):
     def assert_indexes_match(self, result, expected):
         """
@@ -42,7 +44,6 @@ class BaseTestCase(TestCase):
 
 
 class TestStats(BaseTestCase):
-
     # Simple benchmark, no drawdown
     simple_benchmark = pd.Series(
         np.array([0., 1., 0., 1., 0., 1., 0., 1., 0.]) / 100,
@@ -95,12 +96,12 @@ class TestStats(BaseTestCase):
 
     # Random noise
     noise = pd.Series(
-        [random.gauss(0, 0.001) for i in range(1000)],
+        rand.normal(0, 0.001, 1000),
         index=pd.date_range('2000-1-30', periods=1000, freq='D', tz='UTC')
     )
 
     noise_uniform = pd.Series(
-        [random.uniform(-0.01, 0.01) for i in range(1000)],
+        rand.uniform(-0.01, 0.01, 1000),
         index=pd.date_range('2000-1-30', periods=1000, freq='D', tz='UTC')
     )
 
@@ -131,11 +132,11 @@ class TestStats(BaseTestCase):
     )
 
     # Sparse noise, same as noise but with np.nan sprinkled in
-    replace_nan = random.sample(noise.index.tolist(), random.randint(1, 10))
+    replace_nan = rand.choice(noise.index.tolist(), rand.randint(1, 10))
     sparse_noise = noise.replace(replace_nan, np.nan)
 
     # Sparse flat line at 0.01
-    replace_nan = random.sample(noise.index.tolist(), random.randint(1, 10))
+    replace_nan = rand.choice(noise.index.tolist(), rand.randint(1, 10))
     sparse_flat_line_1_tz = flat_line_1_tz.replace(replace_nan, np.nan)
 
     one = [-0.00171614, 0.01322056, 0.03063862, -0.01422057, -0.00489779,
@@ -432,12 +433,12 @@ class TestStats(BaseTestCase):
     def test_sharpe_noise(self, small, large):
         index = pd.date_range('2000-1-30', periods=1000, freq='D')
         smaller_normal = pd.Series(
-            [random.gauss(.01, small) for i in range(1000)],
-            index=index
+            rand.normal(.01, small, 1000),
+            index=index,
         )
         larger_normal = pd.Series(
-            [random.gauss(.01, large) for i in range(1000)],
-            index=index
+            rand.normal(.01, large, 1000),
+            index=index,
         )
         assert self.empyrical.sharpe_ratio(smaller_normal, 0.001) > \
             self.empyrical.sharpe_ratio(larger_normal, 0.001)
@@ -517,12 +518,20 @@ class TestStats(BaseTestCase):
     ])
     def test_downside_risk_std(self, smaller_std, larger_std):
         less_noise = pd.Series(
-            [random.gauss(0, smaller_std) for i in range(1000)],
-            index=pd.date_range('2000-1-30', periods=1000, freq='D')
+            (
+                rand.normal(0, smaller_std, 1000)
+                if smaller_std != 0
+                else np.full(1000, 0)
+            ),
+            index=pd.date_range('2000-1-30', periods=1000, freq='D'),
         )
         more_noise = pd.Series(
-            [random.gauss(0, larger_std) for i in range(1000)],
-            index=pd.date_range('2000-1-30', periods=1000, freq='D')
+            (
+                rand.normal(0, larger_std, 1000)
+                if larger_std != 0
+                else np.full(1000, 0)
+            ),
+            index=pd.date_range('2000-1-30', periods=1000, freq='D'),
         )
         assert self.empyrical.downside_risk(less_noise) < \
             self.empyrical.downside_risk(more_noise)
@@ -580,7 +589,7 @@ class TestStats(BaseTestCase):
         sr_1 = self.empyrical.sortino_ratio(returns, required_return)
         upside_values = returns[returns > required_return].index.tolist()
         # Add large losses at random upside locations
-        loss_loc = random.sample(upside_values, 2)
+        loss_loc = rand.choice(upside_values, 2)
         returns[loss_loc[0]] = -0.01
         sr_2 = self.empyrical.sortino_ratio(returns, required_return)
         returns[loss_loc[1]] = -0.01
@@ -600,7 +609,7 @@ class TestStats(BaseTestCase):
         sr_1 = self.empyrical.sortino_ratio(returns, required_return)
         downside_values = returns[returns < required_return].index.tolist()
         # Replace some values below the required return to the required return
-        loss_loc = random.sample(downside_values, 2)
+        loss_loc = rand.choice(downside_values, 2)
         returns[loss_loc[0]] = required_return
         sr_2 = self.empyrical.sortino_ratio(returns, required_return)
         returns[loss_loc[1]] = required_return
@@ -770,7 +779,7 @@ class TestStats(BaseTestCase):
         means = [mean_returns, .001]
         covs = [[std_returns**2, std_returns*std_bench*correlation],
                 [std_returns*std_bench*correlation, std_bench**2]]
-        (ret, bench) = np.random.multivariate_normal(means, covs, 1000).T
+        (ret, bench) = rand.multivariate_normal(means, covs, 1000).T
         returns = pd.Series(
             ret,
             index=pd.date_range('2000-1-30', periods=1000, freq='D'))
@@ -821,7 +830,7 @@ class TestStats(BaseTestCase):
         means_less = [mean_returns, mean_bench]
         covs_less = [[std_returns**2, std_returns*std_bench*corr_less],
                      [std_returns*std_bench*corr_less, std_bench**2]]
-        (ret_less, bench_less) = np.random.multivariate_normal(
+        (ret_less, bench_less) = rand.multivariate_normal(
             means_less, covs_less, 1000).T
         returns_less = pd.Series(ret_less, index=index)
         benchmark_less = pd.Series(bench_less, index=index)
@@ -829,7 +838,7 @@ class TestStats(BaseTestCase):
         means_more = [mean_returns, mean_bench]
         covs_more = [[std_returns**2, std_returns*std_bench*corr_more],
                      [std_returns*std_bench*corr_more, std_bench**2]]
-        (ret_more, bench_more) = np.random.multivariate_normal(
+        (ret_more, bench_more) = rand.multivariate_normal(
             means_more, covs_more, 1000).T
         returns_more = pd.Series(ret_more, index=index)
         benchmark_more = pd.Series(bench_more, index=index)
@@ -865,17 +874,32 @@ class TestStats(BaseTestCase):
         (2 * noise, noise, 2.0),
         (noise, inv_noise, -1.0),
         (2 * noise, inv_noise, -2.0),
-        (sparse_noise*flat_line_1_tz, sparse_flat_line_1_tz, np.nan),
+        (sparse_noise * flat_line_1_tz, sparse_flat_line_1_tz, np.nan),
+        (
+            simple_benchmark + rand.normal(0, 0.001, len(simple_benchmark)),
+            pd.DataFrame({'returns': simple_benchmark}),
+            1.0,
+            2,
+        ),
     ])
-    def test_beta(self, returns, benchmark, expected):
+    def test_beta(self,
+                  returns,
+                  benchmark,
+                  expected,
+                  decimal_places=DECIMAL_PLACES):
         observed = self.empyrical.beta(returns, benchmark)
         assert_almost_equal(
             observed,
             expected,
-            DECIMAL_PLACES)
+            decimal_places,
+        )
 
         if len(returns) == len(benchmark):
             # Compare to scipy linregress
+
+            if isinstance(benchmark, pd.DataFrame):
+                benchmark = benchmark['returns']
+
             returns_arr = returns.values
             benchmark_arr = benchmark.values
             mask = ~np.isnan(returns_arr) & ~np.isnan(benchmark_arr)
@@ -943,7 +967,7 @@ class TestStats(BaseTestCase):
         (empty_returns, np.nan),
         (one_return, 1.0),
         (mixed_returns, 0.9473684210526313),
-        (pd.Series(np.random.randn(100000)), 1.),
+        (pd.Series(rand.randn(100000)), 1.),
     ])
     def test_tail_ratio(self, returns, expected):
         assert_almost_equal(
@@ -1250,7 +1274,7 @@ class TestStats(BaseTestCase):
         assert_almost_equal(value_at_risk(returns, cutoff=0.3), 81.5)
 
         # Test a returns stream of 21 data points at different cutoffs.
-        returns = np.random.normal(0, 0.02, 21)
+        returns = rand.normal(0, 0.02, 21)
         for cutoff in (0, 0.0499, 0.05, 0.20, 0.999, 1):
             assert_almost_equal(
                 value_at_risk(returns, cutoff),
@@ -1262,7 +1286,7 @@ class TestStats(BaseTestCase):
         conditional_value_at_risk = self.empyrical.conditional_value_at_risk
 
         # A single-valued array will always just have a CVaR of its only value.
-        returns = np.random.normal(0, 0.02, 1)
+        returns = rand.normal(0, 0.02, 1)
         expected_cvar = returns[0]
         assert_almost_equal(
             conditional_value_at_risk(returns, cutoff=0), expected_cvar,
@@ -1272,7 +1296,7 @@ class TestStats(BaseTestCase):
         )
 
         # Test a returns stream of 21 data points at different cutoffs.
-        returns = np.random.normal(0, 0.02, 21)
+        returns = rand.normal(0, 0.02, 21)
 
         for cutoff in (0, 0.0499, 0.05, 0.20, 0.999, 1):
             # Find the VaR based on our cutoff, then take the average of all
@@ -1360,11 +1384,11 @@ class TestHelpers(BaseTestCase):
         self.window = 12
 
         self.returns = pd.Series(
-            np.random.randn(1, 120)[0]/100.,
+            rand.randn(1, 120)[0]/100.,
             index=pd.date_range('2000-1-30', periods=120, freq='M'))
 
         self.factor_returns = pd.Series(
-            np.random.randn(1, 120)[0]/100.,
+            rand.randn(1, 120)[0]/100.,
             index=pd.date_range('2000-1-30', periods=120, freq='M'))
 
     def test_roll_pandas(self):
