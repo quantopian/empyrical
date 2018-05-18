@@ -78,6 +78,11 @@ deprecated and will be removed in a future version.
 
 Users should beware that the following functions are now deprecated:
 
+- `empyrical.utils.cache_dir`
+- `empyrical.utils.data_path`
+- `empyrical.utils.ensure_directory`
+- `empyrical.utils.get_utc_timestamp`
+- `empyrical.utils._1_bday_ago`
 - `empyrical.utils.get_fama_french`
 - `empyrical.utils.load_portfolio_risk_factors`
 - `empyrical.utils.default_returns_func`

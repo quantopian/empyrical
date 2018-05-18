@@ -268,6 +268,7 @@ def get_fama_french():
     return five_factors
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def get_returns_cached(filepath, update_func, latest_dt, **kwargs):
     """
     Get returns from a cached file if the cache is recent enough,
