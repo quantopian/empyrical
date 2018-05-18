@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Quantopian, Inc.
+# Copyright 2018 Quantopian, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,6 +24,17 @@ from numpy.lib.stride_tricks import as_strided
 import pandas as pd
 from pandas.tseries.offsets import BDay
 from pandas_datareader import data as web
+from .deprecate import deprecated
+
+DATALOADER_DEPRECATION_WARNING = \
+        """
+        Yahoo and Google Finance have suffered large API breaks with no stable
+        replacement. As a result, any data reading functionality in empyrical
+        has been deprecated and will be removed in a future version.
+
+        Please use empyrical in the Quantopian Research environment, or supply
+        your own data.
+        """
 
 try:
     # fast versions
@@ -234,6 +245,7 @@ def _1_bday_ago():
     return pd.Timestamp.now().normalize() - _1_bday
 
 
+@deprecated(msg=DATALOADER_DEPRECATION_WARNING)
 def get_fama_french():
     """
     Retrieve Fama-French factors via pandas-datareader
@@ -324,6 +336,7 @@ def get_returns_cached(filepath, update_func, latest_dt, **kwargs):
     return returns
 
 
+@deprecated(msg=DATALOADER_DEPRECATION_WARNING)
 def load_portfolio_risk_factors(filepath_prefix=None, start=None, end=None):
     """
     Load risk factors Mkt-Rf, SMB, HML, Rf, and UMD.
@@ -353,6 +366,7 @@ def load_portfolio_risk_factors(filepath_prefix=None, start=None, end=None):
     return five_factors.loc[start:end]
 
 
+@deprecated(msg=DATALOADER_DEPRECATION_WARNING)
 def get_treasury_yield(start=None, end=None, period='3MO'):
     """
     Load treasury yields from FRED.
@@ -386,6 +400,7 @@ def get_treasury_yield(start=None, end=None, period='3MO'):
     return treasury
 
 
+@deprecated(msg=DATALOADER_DEPRECATION_WARNING)
 def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     """
     Wrapper for pandas.io.data.get_data_yahoo().
@@ -424,10 +439,11 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     return rets
 
 
+@deprecated(msg=DATALOADER_DEPRECATION_WARNING)
 def default_returns_func(symbol, start=None, end=None):
     """
     Gets returns for a symbol.
-    Queries Yahoo Finance. Attempts to cache SPY.
+    Queries Quandl Finance. Attempts to cache SPY.
 
     Parameters
     ----------
@@ -461,12 +477,12 @@ def default_returns_func(symbol, start=None, end=None):
                                   get_symbol_returns_from_yahoo,
                                   end,
                                   symbol='SPY',
-                                  start='1/1/1970',
+                                  start=start,
                                   end=datetime.now())
-        rets = rets[start:end]
+        rets = rets[rets.index.isin(pd.bdate_range(start, end))]
     else:
         rets = get_symbol_returns_from_yahoo(symbol, start=start, end=end)
-
+    rets.sort_index(inplace=True)
     return rets[symbol]
 
 
