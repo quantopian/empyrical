@@ -443,7 +443,7 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
 def default_returns_func(symbol, start=None, end=None):
     """
     Gets returns for a symbol.
-    Queries Quandl Finance. Attempts to cache SPY.
+    Queries Yahoo Finance. Attempts to cache SPY.
 
     Parameters
     ----------
@@ -477,12 +477,12 @@ def default_returns_func(symbol, start=None, end=None):
                                   get_symbol_returns_from_yahoo,
                                   end,
                                   symbol='SPY',
-                                  start=start,
+                                  start='1/1/1970',
                                   end=datetime.now())
-        rets = rets[rets.index.isin(pd.bdate_range(start, end))]
+        rets = rets[start:end]
     else:
         rets = get_symbol_returns_from_yahoo(symbol, start=start, end=end)
-    rets.sort_index(inplace=True)
+
     return rets[symbol]
 
 
