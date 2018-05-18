@@ -218,7 +218,6 @@ def ensure_directory(path):
             raise
 
 
-@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def get_utc_timestamp(dt):
     """
     Returns the Timestamp/DatetimeIndex
