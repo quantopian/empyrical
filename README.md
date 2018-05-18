@@ -89,7 +89,7 @@ patches to the Yahoo or Google Finance API:
 - `empyrical.utils.default_returns_func`
 - `empyrical.utils.get_symbol_returns_from_yahoo`
 
-As an alternative data source, we suggest the following:
+For alternative data sources, we suggest the following:
 
 1. Migrate your research workflow to the Quantopian Research environment,
    where there is [free and flexible data access to over 57
