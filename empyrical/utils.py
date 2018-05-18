@@ -26,15 +26,14 @@ from pandas.tseries.offsets import BDay
 from pandas_datareader import data as web
 from .deprecate import deprecated
 
-DATALOADER_DEPRECATION_WARNING = \
-        """
-        Yahoo and Google Finance have suffered large API breaks with no stable
-        replacement. As a result, any data reading functionality in empyrical
-        has been deprecated and will be removed in a future version.
-
-        Please use empyrical in the Quantopian Research environment, or supply
-        your own data.
-        """
+DATAREADER_DEPRECATION_WARNING = \
+        ("Yahoo and Google Finance have suffered large API breaks with no "
+         "stable replacement. As a result, any data reading functionality "
+         "in empyrical has been deprecated and will be removed in a future "
+         "version."
+         ""
+         "Please use empyrical in the Quantopian Research environment, or "
+         "supply your own data. See README.md for more details.")
 
 try:
     # fast versions
@@ -245,7 +244,7 @@ def _1_bday_ago():
     return pd.Timestamp.now().normalize() - _1_bday
 
 
-@deprecated(msg=DATALOADER_DEPRECATION_WARNING)
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def get_fama_french():
     """
     Retrieve Fama-French factors via pandas-datareader
@@ -336,7 +335,7 @@ def get_returns_cached(filepath, update_func, latest_dt, **kwargs):
     return returns
 
 
-@deprecated(msg=DATALOADER_DEPRECATION_WARNING)
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def load_portfolio_risk_factors(filepath_prefix=None, start=None, end=None):
     """
     Load risk factors Mkt-Rf, SMB, HML, Rf, and UMD.
@@ -366,7 +365,7 @@ def load_portfolio_risk_factors(filepath_prefix=None, start=None, end=None):
     return five_factors.loc[start:end]
 
 
-@deprecated(msg=DATALOADER_DEPRECATION_WARNING)
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def get_treasury_yield(start=None, end=None, period='3MO'):
     """
     Load treasury yields from FRED.
@@ -400,7 +399,7 @@ def get_treasury_yield(start=None, end=None, period='3MO'):
     return treasury
 
 
-@deprecated(msg=DATALOADER_DEPRECATION_WARNING)
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     """
     Wrapper for pandas.io.data.get_data_yahoo().
@@ -439,7 +438,7 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     return rets
 
 
-@deprecated(msg=DATALOADER_DEPRECATION_WARNING)
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def default_returns_func(symbol, start=None, end=None):
     """
     Gets returns for a symbol.
