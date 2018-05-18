@@ -185,6 +185,7 @@ def _roll_pandas(func, window, *args, **kwargs):
     return pd.Series(data, index=type(args[0].index)(index_values))
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def cache_dir(environ=environ):
     try:
         return environ['EMPYRICAL_CACHE_DIR']
@@ -199,10 +200,12 @@ def cache_dir(environ=environ):
         )
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def data_path(name):
     return join(cache_dir(), name)
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def ensure_directory(path):
     """
     Ensure that a directory named "path" exists.
@@ -215,6 +218,7 @@ def ensure_directory(path):
             raise
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def get_utc_timestamp(dt):
     """
     Returns the Timestamp/DatetimeIndex
@@ -240,6 +244,7 @@ def get_utc_timestamp(dt):
 _1_bday = BDay()
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def _1_bday_ago():
     return pd.Timestamp.now().normalize() - _1_bday
 
