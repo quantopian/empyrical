@@ -63,6 +63,43 @@ roll_up_capture(returns, window=60)
 
 Please [open an issue](https://github.com/quantopian/empyrical/issues/new) for support.
 
+### Deprecated: Data Reading via `pandas-datareader`
+
+As of early 2018, Yahoo Finance has suffered major API breaks with no stable
+replacement, and the Google Finance API has not been stable since late 2017
+[(source)](https://github.com/pydata/pandas-datareader/blob/da18fbd7621d473828d7fa81dfa5e0f9516b6793/README.rst).
+In recent months it has become a greater and greater strain on the `empyrical`
+development team to maintain support for fetching data through
+`pandas-datareader` and other third-party libraries, as these APIs are known to
+be unstable.
+
+As a result, all `empyrical` support for data reading functionality has been
+deprecated and will be removed in a future version.
+
+Users should beware that the following functions are now deprecated:
+    - `empyrical.utils.get_fama_french`
+    - `empyrical.utils.load_portfolio_risk_factors`
+    - `empyrical.utils.default_returns_func`
+    - `empyrical.utils.get_symbol_returns_from_yahoo`
+
+Users should expect regular failures from the following functions, pending
+patches to the Yahoo or Google Finance API:
+    - `empyrical.utils.default_returns_func`
+    - `empyrical.utils.get_symbol_returns_from_yahoo`
+
+As an alternative data source, we suggest the following:
+    1. Migrate your research workflow to the Quantopian Research environment,
+       where there is [free and flexible data access to over 57
+       datasets](https://www.quantopian.com/data)
+    2. Make use of any remaining functional APIs supported by
+       `pandas-datareader`. These include:
+       - [Morningstar](https://pydata.github.io/pandas-datareader/stable/remote_data.html#remote-data-morningstar)
+       - [Quandl](https://pydata.github.io/pandas-datareader/stable/remote_data.html#remote-data-quandl)
+       Please note that you may need to create free accounts with these data
+       providers and receive an API key in order to access data. These API keys
+       should be set as environment variables, or passed as an argument to
+       `pandas-datareader`.
+
 ## Contributing
 
 Please contribute using [Github Flow](https://guides.github.com/introduction/flow/). Create a branch, add commits, and [open a pull request](https://github.com/quantopian/empyrical/compare/).
