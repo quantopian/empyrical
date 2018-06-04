@@ -23,7 +23,13 @@ import numpy as np
 from numpy.lib.stride_tricks import as_strided
 import pandas as pd
 from pandas.tseries.offsets import BDay
-from pandas_datareader import data as web
+try:
+    from pandas_datareader import data as web
+except ImportError as e:
+    msg = ("Unable to import pandas_datareader. Suppressing import error and "
+           "continuing. All data reading functionality will raise errors; but "
+           "has been deprecated and will be removed in a later version.")
+    warnings.warn(msg)
 from .deprecate import deprecated
 
 DATAREADER_DEPRECATION_WARNING = \
@@ -31,7 +37,7 @@ DATAREADER_DEPRECATION_WARNING = \
          "stable replacement. As a result, any data reading functionality "
          "in empyrical has been deprecated and will be removed in a future "
          "version."
-         ""
+         "\n"
          "Please use empyrical in the Quantopian Research environment, or "
          "supply your own data. See README.md for more details.")
 
