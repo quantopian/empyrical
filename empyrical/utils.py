@@ -36,11 +36,9 @@ DATAREADER_DEPRECATION_WARNING = \
         ("Yahoo and Google Finance have suffered large API breaks with no "
          "stable replacement. As a result, any data reading functionality "
          "in empyrical has been deprecated and will be removed in a future "
-         "version."
-         "\n"
-         "Please use empyrical in the Quantopian Research environment, or "
-         "supply your own data. See README.md for more details.")
-
+         "version. See README.md for more details: "
+         "\n\n"
+         "\thttps://github.com/quantopian/pyfolio/blob/master/README.md")
 try:
     # fast versions
     import bottleneck as bn
