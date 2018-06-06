@@ -222,29 +222,6 @@ def ensure_directory(path):
             raise
 
 
-def compute_returns(prices):
-    """
-    Computes correctly-indexed returns from prices.
-
-    Parameters
-    ----------
-    prices : pd.Series or pd.DataFrame
-        Prices of assets in wide-format, with assets as columns,
-        and indexed by datetimes.
-
-    Returns
-    -------
-    returns : pd.Series or pd.DataFrame
-        Returns of assets in wide-format, with assets as columns,
-        and index coerced to be tz-aware.
-    """
-
-    rets = prices.pct_change().dropna()
-    rets.index = rets.index.tz_localize('UTC')
-
-    return rets
-
-
 def get_utc_timestamp(dt):
     """
     Returns the Timestamp/DatetimeIndex
