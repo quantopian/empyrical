@@ -93,22 +93,6 @@ patches to the Yahoo or Google Finance API:
 - `empyrical.utils.default_returns_func`
 - `empyrical.utils.get_symbol_returns_from_yahoo`
 
-For alternative data sources, we suggest the following:
-
-1. Migrate your research workflow to the Quantopian Research environment,
-   where there is [free and flexible data access to over 57
-   datasets](https://www.quantopian.com/data)
-2. Make use of any remaining functional APIs supported by
-   `pandas-datareader`. These include:
-
-   - [Morningstar](https://pydata.github.io/pandas-datareader/stable/remote_data.html#remote-data-morningstar)
-   - [Quandl](https://pydata.github.io/pandas-datareader/stable/remote_data.html#remote-data-quandl)
-
-   Please note that you may need to create free accounts with these data
-   providers and receive an API key in order to access data. These API keys
-   should be set as environment variables, or passed as an argument to
-   `pandas-datareader`.
-
 ## Contributing
 
 Please contribute using [Github Flow](https://guides.github.com/introduction/flow/). Create a branch, add commits, and [open a pull request](https://github.com/quantopian/empyrical/compare/).
