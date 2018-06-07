@@ -161,6 +161,21 @@ class TestStats(BaseTestCase):
         'two': pd.Series(two, index=df_index_month)})
 
     @parameterized.expand([
+        # Constant price implies zero returns,
+        # and linearly increasing prices imples returns like 1/n
+        (flat_line_1, [0.0] * flat_line_1.shape[0]),
+        (pos_line, [np.inf] + [1/n for n in range(1, 1000)])
+    ])
+    def test_simple_returns(self, prices, expected):
+        simple_returns = self.empyrical.stats.simple_returns(prices)
+        for i in range(prices.shape[0] - 1):
+            assert_almost_equal(
+                    simple_returns[i],
+                    expected[i],
+                    4)
+        self.assert_indexes_match(simple_returns, prices.iloc[1:])
+
+    @parameterized.expand([
         (empty_returns, 0, []),
         (mixed_returns, 0, [0.0, 0.01, 0.111, 0.066559, 0.08789, 0.12052,
                             0.14293, 0.15436, 0.03893]),
