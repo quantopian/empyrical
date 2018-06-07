@@ -249,7 +249,6 @@ def get_utc_timestamp(dt):
 _1_bday = BDay()
 
 
-@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def _1_bday_ago():
     return pd.Timestamp.now().normalize() - _1_bday
 
