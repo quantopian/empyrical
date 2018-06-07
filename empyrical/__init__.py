@@ -55,6 +55,7 @@ from .stats import (
     roll_up_capture,
     roll_up_down_capture,
     sharpe_ratio,
+    simple_returns,
     sortino_ratio,
     stability_of_timeseries,
     tail_ratio,
