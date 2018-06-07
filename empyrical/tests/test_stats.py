@@ -167,7 +167,7 @@ class TestStats(BaseTestCase):
         (pos_line, [np.inf] + [1/n for n in range(1, 1000)])
     ])
     def test_simple_returns(self, prices, expected):
-        simple_returns = self.empyrical.stats.simple_returns(prices)
+        simple_returns = self.empyrical.simple_returns(prices)
         for i in range(prices.shape[0] - 1):
             assert_almost_equal(
                     simple_returns[i],
