@@ -168,7 +168,7 @@ class TestStats(BaseTestCase):
     ])
     def test_simple_returns(self, prices, expected):
         simple_returns = self.empyrical.simple_returns(prices)
-        for i in range(prices.shape[0] - 1):
+        for i in range(prices.size - 1):
             assert_almost_equal(
                     simple_returns[i],
                     expected[i],
