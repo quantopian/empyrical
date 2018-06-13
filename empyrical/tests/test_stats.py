@@ -163,16 +163,12 @@ class TestStats(BaseTestCase):
     @parameterized.expand([
         # Constant price implies zero returns,
         # and linearly increasing prices imples returns like 1/n
-        (flat_line_1, [0.0] * flat_line_1.shape[0]),
-        (pos_line, [np.inf] + [1/n for n in range(1, 1000)])
+        (flat_line_1, [0.0] * (flat_line_1.shape[0] - 1)),
+        (pos_line, [np.inf] + [1/n for n in range(1, 999)])
     ])
     def test_simple_returns(self, prices, expected):
         simple_returns = self.empyrical.simple_returns(prices)
-        for i in range(prices.size - 1):
-            assert_almost_equal(
-                    simple_returns[i],
-                    expected[i],
-                    4)
+        assert_almost_equal(np.array(simple_returns), expected, 4)
         self.assert_indexes_match(simple_returns, prices.iloc[1:])
 
     @parameterized.expand([
