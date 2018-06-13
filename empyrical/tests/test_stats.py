@@ -1470,6 +1470,19 @@ class Test2DStats(BaseTestCase):
 
         self.assert_indexes_match(cum_returns, returns)
 
+    @parameterized.expand([
+        (df_input, 0, df_0_expected.iloc[-1]),
+        (df_input, 100, df_100_expected.iloc[-1]),
+    ])
+    def test_cum_returns_final_df(self, returns, starting_value, expected):
+        return_types = (pd.Series, np.ndarray)
+        result = self.empyrical(return_types=return_types).cum_returns_final(
+            returns,
+            starting_value=starting_value,
+        )
+        assert_almost_equal(np.array(result), expected, 5)
+        self.assert_indexes_match(result, expected)
+
     @property
     def empyrical(self):
         """

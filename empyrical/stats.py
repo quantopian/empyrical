@@ -250,32 +250,34 @@ def cum_returns_final(returns, starting_value=0):
 
     Parameters
     ----------
-    returns : pd.Series or np.ndarray
-       Returns of the strategy as a percentage, noncumulative.
-         - Time series with decimal returns.
-         - Example:
-            2015-07-16    -0.012143
-            2015-07-17    0.045350
-            2015-07-20    0.030957
-            2015-07-21    0.004902.
+    returns : pd.DataFrame, pd.Series, or np.ndarray
+       Noncumulative simple returns of one or more timeseries.
     starting_value : float, optional
        The starting returns.
 
     Returns
     -------
-    total_returns : float
-    """
+    total_returns : pd.Series, np.ndarray, or float
+        If input is 1-dimensional (a Series or 1D numpy array), the result is a
+        scalar.
 
+        If input is 2-dimensional (a DataFrame or 2D numpy array), the result
+        is a 1D array containing cumulative returns for each column of input.
+    """
     if len(returns) == 0:
         return np.nan
 
-    returns = np.nanprod(returns + 1)
-    if starting_value == 0:
-        returns -= 1
+    if isinstance(returns, pd.DataFrame):
+        result = (returns + 1).prod()
     else:
-        returns *= starting_value
+        result = np.nanprod(returns + 1, axis=0)
 
-    return returns
+    if starting_value == 0:
+        result -= 1
+    else:
+        result *= starting_value
+
+    return result
 
 
 def aggregate_returns(returns, convert_to):
