@@ -401,7 +401,7 @@ def get_treasury_yield(start=None, end=None, period='3MO'):
     if end is None:
         end = _1_bday_ago()
 
-    treasury = web.DataReader("DGS3{}".format(period), "fred",
+    treasury = web.DataReader("DGS{}".format(period), "fred",
                               start, end)
 
     treasury = treasury.ffill()
