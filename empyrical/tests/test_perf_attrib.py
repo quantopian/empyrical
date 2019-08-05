@@ -221,5 +221,3 @@ class PerfAttribTestCase(unittest.TestCase):
                          index=risk_exposures_portfolio.index,
                          columns=risk_exposures_portfolio.columns)
         )
-    #timing_exposure = risk_exposures_portfolio - tilt_exposure
-    #factor_returns.multiply(timing_exposure).sum(axis='columns')
