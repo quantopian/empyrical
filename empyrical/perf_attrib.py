@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import pandas as pd
 
 
@@ -81,17 +82,36 @@ def perf_attrib(returns,
     ----
     See https://en.wikipedia.org/wiki/Performance_attribution for more details.
     """
+
+    # Make risk data match time range of returns
+    start = returns.index[0]
+    end = returns.index[-1]
+    factor_returns = factor_returns.loc[start:end]
+    factor_loadings = factor_loadings.loc[start:end]
+    
+    factor_loadings.index = factor_loadings.index.set_names(['dt', 'ticker'])
+
+    positions = positions.copy()
+    positions.index = positions.index.set_names(['dt', 'ticker'])
+    
     risk_exposures_portfolio = compute_exposures(positions,
                                                  factor_loadings)
 
     perf_attrib_by_factor = risk_exposures_portfolio.multiply(factor_returns)
-
     common_returns = perf_attrib_by_factor.sum(axis='columns')
+    
+    tilt_exposure = risk_exposures_portfolio.mean()  
+    tilt_returns = factor_returns.multiply(tilt_exposure).sum(axis='columns')
+    timing_returns = common_returns - tilt_returns
     specific_returns = returns - common_returns
 
-    returns_df = pd.DataFrame({'total_returns': returns,
-                               'common_returns': common_returns,
-                               'specific_returns': specific_returns})
+    returns_df = pd.DataFrame(OrderedDict([
+        ('total_returns', returns),
+        ('common_returns', common_returns),
+        ('specific_returns', specific_returns),
+        ('tilt_returns', tilt_returns),
+        ('timing_returns', timing_returns)
+        ]))
 
     return (risk_exposures_portfolio,
             pd.concat([perf_attrib_by_factor, returns_df], axis='columns'))
