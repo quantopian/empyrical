@@ -69,6 +69,7 @@ from .periods import (
     DAILY,
     WEEKLY,
     MONTHLY,
+    QUARTERLY,
     YEARLY
 )
 

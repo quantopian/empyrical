@@ -15,6 +15,7 @@
 
 from __future__ import division
 
+import math
 import pandas as pd
 import numpy as np
 from scipy import stats
@@ -22,7 +23,7 @@ from six import iteritems
 
 from .utils import nanmean, nanstd, nanmin, up, down, roll, rolling_window
 from .periods import ANNUALIZATION_FACTORS, APPROX_BDAYS_PER_YEAR
-from .periods import DAILY, WEEKLY, MONTHLY, YEARLY
+from .periods import DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY
 
 
 def _create_unary_vectorized_roll_function(function):
@@ -330,6 +331,8 @@ def aggregate_returns(returns, convert_to):
         grouping = [lambda x: x.year, lambda x: x.isocalendar()[1]]
     elif convert_to == MONTHLY:
         grouping = [lambda x: x.year, lambda x: x.month]
+    elif convert_to == QUARTERLY:
+        grouping = [lambda x: x.year, lambda x: int(math.ceil(x.month/3.))]
     elif convert_to == YEARLY:
         grouping = [lambda x: x.year]
     else:

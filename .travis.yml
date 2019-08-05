@@ -30,7 +30,7 @@ before_install:
   - conda update -q conda
 
 install:
-  - conda create -n testenv --yes -c quantopian pip python=$TRAVIS_PYTHON_VERSION numpy=$NUMPY_VERSION pandas=$PANDAS_VERSION scipy=$SCIPY_VERSION libgfortran=$LIBGFORTRAN_VERSION
+  - conda create -n testenv --yes -c conda-forge pip python=$TRAVIS_PYTHON_VERSION numpy=$NUMPY_VERSION pandas=$PANDAS_VERSION scipy=$SCIPY_VERSION libgfortran=$LIBGFORTRAN_VERSION
   - source activate testenv
   - pip install -e .[dev]
 
