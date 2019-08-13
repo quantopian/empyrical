@@ -93,14 +93,14 @@ def perf_attrib(returns,
 
     positions = positions.copy()
     positions.index = positions.index.set_names(['dt', 'ticker'])
-    
+
     risk_exposures_portfolio = compute_exposures(positions,
                                                  factor_loadings)
 
     perf_attrib_by_factor = risk_exposures_portfolio.multiply(factor_returns)
     common_returns = perf_attrib_by_factor.sum(axis='columns')
-    
-    tilt_exposure = risk_exposures_portfolio.mean()  
+
+    tilt_exposure = risk_exposures_portfolio.mean()
     tilt_returns = factor_returns.multiply(tilt_exposure).sum(axis='columns')
     timing_returns = common_returns - tilt_returns
     specific_returns = returns - common_returns
