@@ -88,7 +88,7 @@ def perf_attrib(returns,
     end = returns.index[-1]
     factor_returns = factor_returns.loc[start:end]
     factor_loadings = factor_loadings.loc[start:end]
-    
+
     factor_loadings.index = factor_loadings.index.set_names(['dt', 'ticker'])
 
     positions = positions.copy()
