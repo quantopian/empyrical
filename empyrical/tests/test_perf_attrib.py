@@ -107,7 +107,6 @@ class PerfAttribTestCase(unittest.TestCase):
         pd.util.testing.assert_frame_equal(expected_exposures_portfolio,
                                            exposures_portfolio)
 
-
         # test long and short positions with tilt exposure
         positions = pd.Series([1.0, -0.5, 1.0, -0.5], index=index)
 
