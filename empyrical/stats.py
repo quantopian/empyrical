@@ -1280,14 +1280,7 @@ def alpha_aligned(returns,
     adj_factor_returns = _adjust_returns(factor_returns, risk_free)
     alpha_series = adj_returns - (_beta * adj_factor_returns)
 
-<<<<<<< HEAD
-    return annualize_compounding(nanmean(alpha_series), ann_factor)
-=======
-    out = np.multiply(
-        nanmean(alpha_series, axis=0, out=out),
-        ann_factor,
-        out=out,
-    )
+    out = annualize_compounding(nanmean(alpha_series), ann_factor)
 
     if allocated_output and isinstance(returns, pd.DataFrame):
         out = pd.Series(out)
@@ -1299,7 +1292,6 @@ def alpha_aligned(returns,
 
 
 roll_alpha_aligned = _create_binary_vectorized_roll_function(alpha_aligned)
->>>>>>> master
 
 
 def beta(returns, factor_returns, risk_free=0.0, out=None):
