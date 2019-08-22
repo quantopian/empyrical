@@ -52,7 +52,7 @@ def _create_unary_vectorized_roll_function(function):
 
         if len(arr):
             out = function(
-                rolling_window(arr, min(len(arr), window)).T,
+                rolling_window(_flatten(arr), min(len(arr), window)).T,
                 out=out,
                 **kwargs
             )
@@ -100,8 +100,8 @@ def _create_binary_vectorized_roll_function(function):
 
         if window >= 1 and len(lhs) and len(rhs):
             out = function(
-                rolling_window(lhs, min(len(lhs), window)).T,
-                rolling_window(rhs, min(len(rhs), window)).T,
+                rolling_window(_flatten(lhs), min(len(lhs), window)).T,
+                rolling_window(_flatten(rhs), min(len(rhs), window)).T,
                 out=out,
                 **kwargs
             )
@@ -123,6 +123,10 @@ def _create_binary_vectorized_roll_function(function):
     )
 
     return binary_vectorized_roll
+
+
+def _flatten(arr):
+    return arr if not isinstance(arr, pd.Series) else arr.values
 
 
 def _adjust_returns(returns, adjustment_factor):
