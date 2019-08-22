@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Quantopian, Inc.
+# Copyright 2018 Quantopian, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,29 +12,58 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import errno
+from datetime import datetime
+from functools import wraps
 from os import makedirs, environ
 from os.path import expanduser, join, getmtime, isdir
+import errno
 import warnings
-from datetime import datetime
 
 import numpy as np
+from numpy.lib.stride_tricks import as_strided
 import pandas as pd
 from pandas.tseries.offsets import BDay
+try:
+    from pandas_datareader import data as web
+except ImportError:
+    msg = ("Unable to import pandas_datareader. Suppressing import error and "
+           "continuing. All data reading functionality will raise errors; but "
+           "has been deprecated and will be removed in a later version.")
+    warnings.warn(msg)
+from .deprecate import deprecated
 
-from pandas_datareader import data as web
-
+DATAREADER_DEPRECATION_WARNING = \
+        ("Yahoo and Google Finance have suffered large API breaks with no "
+         "stable replacement. As a result, any data reading functionality "
+         "in empyrical has been deprecated and will be removed in a future "
+         "version. See README.md for more details: "
+         "\n\n"
+         "\thttps://github.com/quantopian/pyfolio/blob/master/README.md")
 try:
     # fast versions
     import bottleneck as bn
-    nanmean = bn.nanmean
-    nanstd = bn.nanstd
-    nansum = bn.nansum
-    nanmax = bn.nanmax
-    nanmin = bn.nanmin
-    nanargmax = bn.nanargmax
-    nanargmin = bn.nanargmin
+
+    def _wrap_function(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            out = kwargs.pop('out', None)
+            data = f(*args, **kwargs)
+            if out is None:
+                out = data
+            else:
+                out[()] = data
+
+            return out
+
+        return wrapped
+
+    nanmean = _wrap_function(bn.nanmean)
+    nanstd = _wrap_function(bn.nanstd)
+    nansum = _wrap_function(bn.nansum)
+    nanmax = _wrap_function(bn.nanmax)
+    nanmin = _wrap_function(bn.nanmin)
+    nanargmax = _wrap_function(bn.nanargmax)
+    nanargmin = _wrap_function(bn.nanargmin)
 except ImportError:
     # slower numpy
     nanmean = np.nanmean
@@ -143,7 +172,7 @@ def down(returns, factor_returns, **kwargs):
 
 def _roll_ndarray(func, window, *args, **kwargs):
     data = []
-    for i in range(window, len(args[0])):
+    for i in range(window, len(args[0]) + 1):
         rets = [s[i-window:i] for s in args]
         data.append(func(*rets, **kwargs))
     return np.array(data)
@@ -151,12 +180,16 @@ def _roll_ndarray(func, window, *args, **kwargs):
 
 def _roll_pandas(func, window, *args, **kwargs):
     data = {}
-    for i in range(window, len(args[0])):
+    index_values = []
+    for i in range(window, len(args[0]) + 1):
         rets = [s.iloc[i-window:i] for s in args]
-        data[args[0].index[i]] = func(*rets, **kwargs)
-    return pd.Series(data)
+        index_value = args[0].index[i - 1]
+        index_values.append(index_value)
+        data[index_value] = func(*rets, **kwargs)
+    return pd.Series(data, index=type(args[0].index)(index_values))
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def cache_dir(environ=environ):
     try:
         return environ['EMPYRICAL_CACHE_DIR']
@@ -171,10 +204,12 @@ def cache_dir(environ=environ):
         )
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def data_path(name):
     return join(cache_dir(), name)
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def ensure_directory(path):
     """
     Ensure that a directory named "path" exists.
@@ -191,10 +226,12 @@ def get_utc_timestamp(dt):
     """
     Returns the Timestamp/DatetimeIndex
     with either localized or converted to UTC.
+
     Parameters
     ----------
     dt : Timestamp/DatetimeIndex
         the date(s) to be converted
+
     Returns
     -------
     same type as input
@@ -216,6 +253,7 @@ def _1_bday_ago():
     return pd.Timestamp.now().normalize() - _1_bday
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def get_fama_french():
     """
     Retrieve Fama-French factors via pandas-datareader
@@ -234,9 +272,12 @@ def get_fama_french():
     five_factors /= 100.
     five_factors.index = five_factors.index.tz_localize('utc')
 
+    five_factors.columns = five_factors.columns.str.strip()
+
     return five_factors
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def get_returns_cached(filepath, update_func, latest_dt, **kwargs):
     """
     Get returns from a cached file if the cache is recent enough,
@@ -304,6 +345,7 @@ def get_returns_cached(filepath, update_func, latest_dt, **kwargs):
     return returns
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def load_portfolio_risk_factors(filepath_prefix=None, start=None, end=None):
     """
     Load risk factors Mkt-Rf, SMB, HML, Rf, and UMD.
@@ -333,9 +375,11 @@ def load_portfolio_risk_factors(filepath_prefix=None, start=None, end=None):
     return five_factors.loc[start:end]
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def get_treasury_yield(start=None, end=None, period='3MO'):
     """
     Load treasury yields from FRED.
+
     Parameters
     ----------
     start : date, optional
@@ -365,11 +409,13 @@ def get_treasury_yield(start=None, end=None, period='3MO'):
     return treasury
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     """
     Wrapper for pandas.io.data.get_data_yahoo().
     Retrieves prices for symbol from yahoo and computes returns
     based on adjusted closing prices.
+
     Parameters
     ----------
     symbol : str
@@ -378,6 +424,7 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
         Start date of time period to retrieve
     end : pandas.Timestamp compatible, optional
         End date of time period to retrieve
+
     Returns
     -------
     pandas.DataFrame
@@ -386,7 +433,9 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
 
     try:
         px = web.get_data_yahoo(symbol, start=start, end=end)
-        rets = px[['Adj Close']].pct_change().dropna()
+        px['date'] = pd.to_datetime(px['date'])
+        px.set_index('date', drop=False, inplace=True)
+        rets = px[['adjclose']].pct_change().dropna()
     except Exception as e:
         warnings.warn(
             'Yahoo Finance read failed: {}, falling back to Google'.format(e),
@@ -399,6 +448,7 @@ def get_symbol_returns_from_yahoo(symbol, start=None, end=None):
     return rets
 
 
+@deprecated(msg=DATAREADER_DEPRECATION_WARNING)
 def default_returns_func(symbol, start=None, end=None):
     """
     Gets returns for a symbol.
@@ -451,3 +501,83 @@ def annualize_compounding(stat, ann_factor=252):
     """
     # use np.float64 to avoid overflow errors
     return np.float64(stat + 1) ** ann_factor - 1
+
+
+def rolling_window(array, length, mutable=False):
+    """
+    Restride an array of shape
+
+        (X_0, ... X_N)
+
+    into an array of shape
+
+        (length, X_0 - length + 1, ... X_N)
+
+    where each slice at index i along the first axis is equivalent to
+
+        result[i] = array[length * i:length * (i + 1)]
+
+    Parameters
+    ----------
+    array : np.ndarray
+        The base array.
+    length : int
+        Length of the synthetic first axis to generate.
+    mutable : bool, optional
+        Return a mutable array? The returned array shares the same memory as
+        the input array. This means that writes into the returned array affect
+        ``array``. The returned array also uses strides to map the same values
+        to multiple indices. Writes to a single index may appear to change many
+        values in the returned array.
+
+    Returns
+    -------
+    out : np.ndarray
+
+    Example
+    -------
+    >>> from numpy import arange
+    >>> a = arange(25).reshape(5, 5)
+    >>> a
+    array([[ 0,  1,  2,  3,  4],
+           [ 5,  6,  7,  8,  9],
+           [10, 11, 12, 13, 14],
+           [15, 16, 17, 18, 19],
+           [20, 21, 22, 23, 24]])
+
+    >>> rolling_window(a, 2)
+    array([[[ 0,  1,  2,  3,  4],
+            [ 5,  6,  7,  8,  9]],
+    <BLANKLINE>
+           [[ 5,  6,  7,  8,  9],
+            [10, 11, 12, 13, 14]],
+    <BLANKLINE>
+           [[10, 11, 12, 13, 14],
+            [15, 16, 17, 18, 19]],
+    <BLANKLINE>
+           [[15, 16, 17, 18, 19],
+            [20, 21, 22, 23, 24]]])
+    """
+    if not length:
+        raise ValueError("Can't have 0-length window")
+
+    orig_shape = array.shape
+    if not orig_shape:
+        raise IndexError("Can't restride a scalar.")
+    elif orig_shape[0] < length:
+        raise IndexError(
+            "Can't restride array of shape {shape} with"
+            " a window length of {len}".format(
+                shape=orig_shape,
+                len=length,
+            )
+        )
+
+    num_windows = (orig_shape[0] - length + 1)
+    new_shape = (num_windows, length) + orig_shape[1:]
+
+    new_strides = (array.strides[0],) + array.strides
+
+    out = as_strided(array, new_shape, new_strides)
+    out.setflags(write=mutable)
+    return out

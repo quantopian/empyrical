@@ -1,6 +1,5 @@
 from __future__ import division
 
-import random
 from copy import copy
 from operator import attrgetter
 from unittest import TestCase, SkipTest
@@ -13,14 +12,38 @@ from pandas.core.generic import NDFrame
 from scipy import stats
 from six import iteritems, wraps
 
+try:
+    from pandas.testing import assert_index_equal
+except ImportError:
+    # This moved in pandas 0.20.
+    from pandas.util.testing import assert_index_equal
+
 import empyrical
 import empyrical.utils as emutils
 
 DECIMAL_PLACES = 8
 
 
-class TestStats(TestCase):
+rand = np.random.RandomState(1337)
 
+
+class BaseTestCase(TestCase):
+    def assert_indexes_match(self, result, expected):
+        """
+        Assert that two pandas objects have the same indices.
+
+        This is a method instead of a free function so that we can override it
+        to be a no-op in suites like TestStatsArrays that unwrap pandas objects
+        into ndarrays.
+        """
+        assert_index_equal(result.index, expected.index)
+
+        if isinstance(result, pd.DataFrame) and \
+           isinstance(expected, pd.DataFrame):
+            assert_index_equal(result.columns, expected.columns)
+
+
+class TestStats(BaseTestCase):
     # Simple benchmark, no drawdown
     simple_benchmark = pd.Series(
         np.array([0., 1., 0., 1., 0., 1., 0., 1., 0.]) / 100,
@@ -73,12 +96,12 @@ class TestStats(TestCase):
 
     # Random noise
     noise = pd.Series(
-        [random.gauss(0, 0.001) for i in range(1000)],
+        rand.normal(0, 0.001, 1000),
         index=pd.date_range('2000-1-30', periods=1000, freq='D', tz='UTC')
     )
 
     noise_uniform = pd.Series(
-        [random.uniform(-0.01, 0.01) for i in range(1000)],
+        rand.uniform(-0.01, 0.01, 1000),
         index=pd.date_range('2000-1-30', periods=1000, freq='D', tz='UTC')
     )
 
@@ -109,11 +132,11 @@ class TestStats(TestCase):
     )
 
     # Sparse noise, same as noise but with np.nan sprinkled in
-    replace_nan = random.sample(noise.index.tolist(), random.randint(1, 10))
+    replace_nan = rand.choice(noise.index.tolist(), rand.randint(1, 10))
     sparse_noise = noise.replace(replace_nan, np.nan)
 
     # Sparse flat line at 0.01
-    replace_nan = random.sample(noise.index.tolist(), random.randint(1, 10))
+    replace_nan = rand.choice(noise.index.tolist(), rand.randint(1, 10))
     sparse_flat_line_1_tz = flat_line_1_tz.replace(replace_nan, np.nan)
 
     one = [-0.00171614, 0.01322056, 0.03063862, -0.01422057, -0.00489779,
@@ -138,6 +161,17 @@ class TestStats(TestCase):
         'two': pd.Series(two, index=df_index_month)})
 
     @parameterized.expand([
+        # Constant price implies zero returns,
+        # and linearly increasing prices imples returns like 1/n
+        (flat_line_1, [0.0] * (flat_line_1.shape[0] - 1)),
+        (pos_line, [np.inf] + [1/n for n in range(1, 999)])
+    ])
+    def test_simple_returns(self, prices, expected):
+        simple_returns = self.empyrical.simple_returns(prices)
+        assert_almost_equal(np.array(simple_returns), expected, 4)
+        self.assert_indexes_match(simple_returns, prices.iloc[1:])
+
+    @parameterized.expand([
         (empty_returns, 0, []),
         (mixed_returns, 0, [0.0, 0.01, 0.111, 0.066559, 0.08789, 0.12052,
                             0.14293, 0.15436, 0.03893]),
@@ -156,6 +190,8 @@ class TestStats(TestCase):
                 cum_returns[i],
                 expected[i],
                 4)
+
+        self.assert_indexes_match(cum_returns, returns)
 
     @parameterized.expand([
         (empty_returns, 0, np.nan),
@@ -180,11 +216,15 @@ class TestStats(TestCase):
                                               0.0]),
         (simple_benchmark, empyrical.MONTHLY, [0.01,
                                                0.03030099999999991]),
+        (simple_benchmark, empyrical.QUARTERLY, [0.04060401]),
         (simple_benchmark, empyrical.YEARLY, [0.040604010000000024]),
         (weekly_returns, empyrical.MONTHLY, [0.0, 0.087891200000000058,
                                              -0.04500459999999995]),
         (weekly_returns, empyrical.YEARLY, [0.038931091700480147]),
-        (monthly_returns, empyrical.YEARLY, [0.038931091700480147])
+        (monthly_returns, empyrical.YEARLY, [0.038931091700480147]),
+        (monthly_returns, empyrical.QUARTERLY, [0.11100000000000021,
+                                                0.008575999999999917,
+                                                -0.072819999999999996])
     ])
     def test_aggregate_returns(self, returns, convert_to, expected):
         returns = self.empyrical(pandas_only=True).aggregate_returns(
@@ -202,20 +242,26 @@ class TestStats(TestCase):
         (simple_benchmark, 0.0),
         (mixed_returns, -0.1),
         (positive_returns, -0.0),
-        (negative_returns, -0.36590730349873601),
-        (all_negative_returns, -0.3785891574287616),
-        (pd.Series(
-            np.array([10, -10, 10]) / 100,
-            index=pd.date_range('2000-1-30', periods=3, freq='D')),
-            -0.10)
+
+        # negative returns means the drawdown is just the returns
+        (negative_returns, empyrical.cum_returns_final(negative_returns)),
+        (all_negative_returns,
+         empyrical.cum_returns_final(all_negative_returns)),
+
+        (
+            pd.Series(
+                np.array([10, -10, 10]) / 100,
+                index=pd.date_range('2000-1-30', periods=3, freq='D'),
+            ),
+            -0.10,
+        ),
     ])
     def test_max_drawdown(self, returns, expected):
         assert_almost_equal(
-            self.empyrical.max_drawdown(
-                returns
-            ),
+            self.empyrical.max_drawdown(returns),
             expected,
-            DECIMAL_PLACES)
+            DECIMAL_PLACES,
+        )
 
     # Maximum drawdown is always less than or equal to zero. Translating
     # returns by a positive constant should increase the maximum
@@ -323,7 +369,8 @@ class TestStats(TestCase):
         (mixed_returns, 0.0, 1.7238613961706866),
         (mixed_returns, simple_benchmark, 0.34111411441060574),
         (positive_returns, 0.0, 52.915026221291804),
-        (negative_returns, 0.0, -24.406808633910085)
+        (negative_returns, 0.0, -24.406808633910085),
+        (flat_line_1, 0.0, np.inf),
     ])
     def test_sharpe_ratio(self, returns, risk_free, expected):
         assert_almost_equal(
@@ -401,12 +448,12 @@ class TestStats(TestCase):
     def test_sharpe_noise(self, small, large):
         index = pd.date_range('2000-1-30', periods=1000, freq='D')
         smaller_normal = pd.Series(
-            [random.gauss(.01, small) for i in range(1000)],
-            index=index
+            rand.normal(.01, small, 1000),
+            index=index,
         )
         larger_normal = pd.Series(
-            [random.gauss(.01, large) for i in range(1000)],
-            index=index
+            rand.normal(.01, large, 1000),
+            index=index,
         )
         assert self.empyrical.sharpe_ratio(smaller_normal, 0.001) > \
             self.empyrical.sharpe_ratio(larger_normal, 0.001)
@@ -486,12 +533,20 @@ class TestStats(TestCase):
     ])
     def test_downside_risk_std(self, smaller_std, larger_std):
         less_noise = pd.Series(
-            [random.gauss(0, smaller_std) for i in range(1000)],
-            index=pd.date_range('2000-1-30', periods=1000, freq='D')
+            (
+                rand.normal(0, smaller_std, 1000)
+                if smaller_std != 0
+                else np.full(1000, 0)
+            ),
+            index=pd.date_range('2000-1-30', periods=1000, freq='D'),
         )
         more_noise = pd.Series(
-            [random.gauss(0, larger_std) for i in range(1000)],
-            index=pd.date_range('2000-1-30', periods=1000, freq='D')
+            (
+                rand.normal(0, larger_std, 1000)
+                if larger_std != 0
+                else np.full(1000, 0)
+            ),
+            index=pd.date_range('2000-1-30', periods=1000, freq='D'),
         )
         assert self.empyrical.downside_risk(less_noise) < \
             self.empyrical.downside_risk(more_noise)
@@ -549,7 +604,7 @@ class TestStats(TestCase):
         sr_1 = self.empyrical.sortino_ratio(returns, required_return)
         upside_values = returns[returns > required_return].index.tolist()
         # Add large losses at random upside locations
-        loss_loc = random.sample(upside_values, 2)
+        loss_loc = rand.choice(upside_values, 2)
         returns[loss_loc[0]] = -0.01
         sr_2 = self.empyrical.sortino_ratio(returns, required_return)
         returns[loss_loc[1]] = -0.01
@@ -569,7 +624,7 @@ class TestStats(TestCase):
         sr_1 = self.empyrical.sortino_ratio(returns, required_return)
         downside_values = returns[returns < required_return].index.tolist()
         # Replace some values below the required return to the required return
-        loss_loc = random.sample(downside_values, 2)
+        loss_loc = rand.choice(downside_values, 2)
         returns[loss_loc[0]] = required_return
         sr_2 = self.empyrical.sortino_ratio(returns, required_return)
         returns[loss_loc[1]] = required_return
@@ -686,7 +741,7 @@ class TestStats(TestCase):
     def test_alpha_beta(self, returns, benchmark, expected):
         alpha, beta = self.empyrical(
             pandas_only=len(returns) != len(benchmark),
-            return_types=tuple,
+            return_types=np.ndarray,
         ).alpha_beta(returns, benchmark)
         assert_almost_equal(
             alpha,
@@ -739,7 +794,7 @@ class TestStats(TestCase):
         means = [mean_returns, .001]
         covs = [[std_returns**2, std_returns*std_bench*correlation],
                 [std_returns*std_bench*correlation, std_bench**2]]
-        (ret, bench) = np.random.multivariate_normal(means, covs, 1000).T
+        (ret, bench) = rand.multivariate_normal(means, covs, 1000).T
         returns = pd.Series(
             ret,
             index=pd.date_range('2000-1-30', periods=1000, freq='D'))
@@ -750,7 +805,7 @@ class TestStats(TestCase):
         # Translate returns and generate alphas and betas.
         returns_depressed = returns-translation
         returns_raised = returns+translation
-        alpha_beta = self.empyrical(return_types=tuple).alpha_beta
+        alpha_beta = self.empyrical(return_types=np.ndarray).alpha_beta
         (alpha_depressed, beta_depressed) = alpha_beta(
             returns_depressed, benchmark)
         (alpha_standard, beta_standard) = alpha_beta(
@@ -793,7 +848,7 @@ class TestStats(TestCase):
         means_less = [mean_returns, mean_bench]
         covs_less = [[std_returns**2, std_returns*std_bench*corr_less],
                      [std_returns*std_bench*corr_less, std_bench**2]]
-        (ret_less, bench_less) = np.random.multivariate_normal(
+        (ret_less, bench_less) = rand.multivariate_normal(
             means_less, covs_less, 1000).T
         returns_less = pd.Series(ret_less, index=index)
         benchmark_less = pd.Series(bench_less, index=index)
@@ -801,12 +856,12 @@ class TestStats(TestCase):
         means_more = [mean_returns, mean_bench]
         covs_more = [[std_returns**2, std_returns*std_bench*corr_more],
                      [std_returns*std_bench*corr_more, std_bench**2]]
-        (ret_more, bench_more) = np.random.multivariate_normal(
+        (ret_more, bench_more) = rand.multivariate_normal(
             means_more, covs_more, 1000).T
         returns_more = pd.Series(ret_more, index=index)
         benchmark_more = pd.Series(bench_more, index=index)
         # Calculate alpha/beta values
-        alpha_beta = self.empyrical(return_types=tuple).alpha_beta
+        alpha_beta = self.empyrical(return_types=np.ndarray).alpha_beta
         alpha_less, beta_less = alpha_beta(returns_less, benchmark_less)
         alpha_more, beta_more = alpha_beta(returns_more, benchmark_more)
         # Alpha determines by how much returns vary from the benchmark return.
@@ -822,8 +877,10 @@ class TestStats(TestCase):
         (sparse_noise, sparse_noise),
     ])
     def test_alpha_beta_with_nan_inputs(self, returns, benchmark):
-        alpha, beta = self.empyrical(return_types=tuple).alpha_beta(returns,
-                                                                    benchmark)
+        alpha, beta = self.empyrical(return_types=np.ndarray).alpha_beta(
+            returns,
+            benchmark,
+        )
         self.assertFalse(np.isnan(alpha))
         self.assertFalse(np.isnan(beta))
 
@@ -835,17 +892,32 @@ class TestStats(TestCase):
         (2 * noise, noise, 2.0),
         (noise, inv_noise, -1.0),
         (2 * noise, inv_noise, -2.0),
-        (sparse_noise*flat_line_1_tz, sparse_flat_line_1_tz, np.nan),
+        (sparse_noise * flat_line_1_tz, sparse_flat_line_1_tz, np.nan),
+        (
+            simple_benchmark + rand.normal(0, 0.001, len(simple_benchmark)),
+            pd.DataFrame({'returns': simple_benchmark}),
+            1.0,
+            2,
+        ),
     ])
-    def test_beta(self, returns, benchmark, expected):
+    def test_beta(self,
+                  returns,
+                  benchmark,
+                  expected,
+                  decimal_places=DECIMAL_PLACES):
         observed = self.empyrical.beta(returns, benchmark)
         assert_almost_equal(
             observed,
             expected,
-            DECIMAL_PLACES)
+            decimal_places,
+        )
 
         if len(returns) == len(benchmark):
             # Compare to scipy linregress
+
+            if isinstance(benchmark, pd.DataFrame):
+                benchmark = benchmark['returns']
+
             returns_arr = returns.values
             benchmark_arr = benchmark.values
             mask = ~np.isnan(returns_arr) & ~np.isnan(benchmark_arr)
@@ -868,7 +940,7 @@ class TestStats(TestCase):
     def test_alpha_beta_equality(self, returns, benchmark):
         alpha, beta = self.empyrical(
             pandas_only=len(returns) != len(benchmark),
-            return_types=tuple,
+            return_types=np.ndarray,
         ).alpha_beta(returns, benchmark)
         assert_almost_equal(
             alpha,
@@ -877,7 +949,8 @@ class TestStats(TestCase):
         assert_almost_equal(
             beta,
             self.empyrical.beta(returns, benchmark),
-            DECIMAL_PLACES)
+            DECIMAL_PLACES
+        )
 
         if len(returns) == len(benchmark):
             # Compare to scipy linregress
@@ -912,7 +985,7 @@ class TestStats(TestCase):
         (empty_returns, np.nan),
         (one_return, 1.0),
         (mixed_returns, 0.9473684210526313),
-        (pd.Series(np.random.randn(100000)), 1.),
+        (pd.Series(rand.randn(100000)), 1.),
     ])
     def test_tail_ratio(self, returns, expected):
         assert_almost_equal(
@@ -981,7 +1054,7 @@ class TestStats(TestCase):
 
     @parameterized.expand([
         (empty_returns, 6, []),
-        (negative_returns, 6, [-0.2282, -0.2745, -0.2899])
+        (negative_returns, 6, [-0.2282, -0.2745, -0.2899, -0.2747])
     ])
     def test_roll_max_drawdown(self, returns, window, expected):
         test = self.empyrical.roll_max_drawdown(returns, window=window)
@@ -990,10 +1063,13 @@ class TestStats(TestCase):
             np.asarray(expected),
             4)
 
+        self.assert_indexes_match(test, returns[-len(expected):])
+
     @parameterized.expand([
         (empty_returns, 6, []),
-        (negative_returns, 6, [-18.09162052, -26.79897486, -26.69138263]),
-        (mixed_returns, 6, [7.57445259, 8.22784105, 8.22784105])
+        (negative_returns, 6, [-18.09162052, -26.79897486, -26.69138263,
+                               -25.72298838]),
+        (mixed_returns, 6, [7.57445259, 8.22784105, 8.22784105, -3.1374751])
     ])
     def test_roll_sharpe_ratio(self, returns, window, expected):
         test = self.empyrical.roll_sharpe_ratio(returns, window=window)
@@ -1001,6 +1077,8 @@ class TestStats(TestCase):
             np.asarray(test),
             np.asarray(expected),
             DECIMAL_PLACES)
+
+        self.assert_indexes_match(test, returns[-len(expected):])
 
     @parameterized.expand([
         (empty_returns, empty_returns, np.nan),
@@ -1028,19 +1106,31 @@ class TestStats(TestCase):
             DECIMAL_PLACES)
 
     @parameterized.expand([
-        (empty_returns, simple_benchmark, 1, []),
-        (one_return, one_return, 1, []),
+        (empty_returns, simple_benchmark,
+         1,
+         [(np.nan, np.nan)] * len(simple_benchmark)),
+        (one_return, one_return, 1, [(np.nan, np.nan)]),
         (mixed_returns, negative_returns,
          6, [(-0.97854954, -0.7826087), (-0.9828927, -0.76156584),
-             (-0.93166924, -0.61682243)]),
+             (-0.93166924, -0.61682243), (-7.8987541, -0.41311475)]),
         (mixed_returns, mixed_returns,
-         6, [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]),
+         6, [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]),
         (mixed_returns, -mixed_returns,
-         6, [(0.0, -1.0), (0.0, -1.0), (0.0, -1.0)]),
+         6,
+         [(0.0, -1.0), (0.0, -1.0), (0.0, -1.0), (0.0, -1.0)]),
     ])
     def test_roll_alpha_beta(self, returns, benchmark, window, expected):
+        test = self.empyrical(
+            return_types=(np.ndarray, pd.DataFrame),
+        ).roll_alpha_beta(
+            returns,
+            benchmark,
+            window,
+        )
+        if isinstance(test, pd.DataFrame):
+            self.assert_indexes_match(test, benchmark[-len(expected):])
+            test = test.values
 
-        test = self.empyrical.roll_alpha_beta(returns, benchmark, window)
         alpha_test = [t[0] for t in test]
         beta_test = [t[1] for t in test]
 
@@ -1048,23 +1138,26 @@ class TestStats(TestCase):
         beta_expected = [t[1] for t in expected]
 
         assert_almost_equal(
-            alpha_test,
-            alpha_expected,
-            DECIMAL_PLACES)
+            np.asarray(alpha_test),
+            np.asarray(alpha_expected),
+            DECIMAL_PLACES,
+        )
 
         assert_almost_equal(
-            beta_test,
-            beta_expected,
-            DECIMAL_PLACES)
+            np.asarray(beta_test),
+            np.asarray(beta_expected),
+            DECIMAL_PLACES,
+        )
 
     @parameterized.expand([
         (empty_returns, empty_returns, 1, []),
         (one_return, one_return, 1,  np.nan),
-        (mixed_returns, mixed_returns, 6, [1., 1., 1.]),
+        (mixed_returns, mixed_returns, 6, [1., 1., 1., 1.]),
         (positive_returns, mixed_returns,
-         6, [-0.00011389, -0.00025861, -0.00015211]),
+         6, [-0.00011389, -0.00025861, -0.00015211, -0.00689239]),
         (all_negative_returns, mixed_returns,
-         6, [-6.38880246e-05, -1.65241701e-04, -1.65241719e-04])
+         6, [-6.38880246e-05, -1.65241701e-04, -1.65241719e-04,
+             -6.89541957e-03])
     ])
     def test_roll_up_down_capture(self, returns, factor_returns, window,
                                   expected):
@@ -1077,12 +1170,12 @@ class TestStats(TestCase):
 
     @parameterized.expand([
         (empty_returns, empty_returns, 1, []),
-        (one_return, one_return, 1,  1.),
-        (mixed_returns, mixed_returns, 6, [1., 1., 1.]),
+        (one_return, one_return, 1,  [np.nan]),
+        (mixed_returns, mixed_returns, 6, [1., 1., 1., 1.]),
         (positive_returns, mixed_returns,
-         6, [-11.2743862, -11.2743862, -11.2743862]),
+         6, [-11.2743862, -11.2743862, -11.2743862, -11.27400221]),
         (all_negative_returns, mixed_returns,
-         6, [0.92058591, 0.92058591, 0.92058591])
+         6, [0.92058591, 0.92058591, 0.92058591, 0.99956026])
     ])
     def test_roll_down_capture(self, returns, factor_returns, window,
                                expected):
@@ -1093,14 +1186,17 @@ class TestStats(TestCase):
             np.asarray(expected),
             DECIMAL_PLACES)
 
+        self.assert_indexes_match(test, returns[-len(expected):])
+
     @parameterized.expand([
         (empty_returns, empty_returns, 1, []),
-        (one_return, one_return, 1,  1.),
-        (mixed_returns, mixed_returns, 6, [1., 1., 1.]),
+        (one_return, one_return, 1,  [1.]),
+        (mixed_returns, mixed_returns, 6, [1., 1., 1., 1.]),
         (positive_returns, mixed_returns,
-         6, [0.00128406, 0.00291564, 0.00171499]),
+         6, [0.00128406, 0.00291564, 0.00171499, 0.0777048]),
         (all_negative_returns, mixed_returns,
-         6, [-5.88144154e-05, -1.52119182e-04, -1.52119198e-04])
+         6, [-5.88144154e-05, -1.52119182e-04, -1.52119198e-04,
+             -6.89238735e-03])
     ])
     def test_roll_up_capture(self, returns, factor_returns, window, expected):
         test = self.empyrical.roll_up_capture(returns, factor_returns,
@@ -1109,6 +1205,8 @@ class TestStats(TestCase):
             np.asarray(test),
             np.asarray(expected),
             DECIMAL_PLACES)
+
+        self.assert_indexes_match(test, returns[-len(expected):])
 
     @parameterized.expand([
         (empty_returns, simple_benchmark, (np.nan, np.nan)),
@@ -1121,7 +1219,7 @@ class TestStats(TestCase):
     def test_down_alpha_beta(self, returns, benchmark, expected):
         down_alpha, down_beta = self.empyrical(
             pandas_only=len(returns) != len(benchmark),
-            return_types=tuple,
+            return_types=np.ndarray,
         ).down_alpha_beta(returns, benchmark)
         assert_almost_equal(
             down_alpha,
@@ -1143,7 +1241,7 @@ class TestStats(TestCase):
     def test_up_alpha_beta(self, returns, benchmark, expected):
         up_alpha, up_beta = self.empyrical(
             pandas_only=len(returns) != len(benchmark),
-            return_types=tuple,
+            return_types=np.ndarray,
         ).up_alpha_beta(returns, benchmark)
         assert_almost_equal(
             up_alpha,
@@ -1194,7 +1292,7 @@ class TestStats(TestCase):
         assert_almost_equal(value_at_risk(returns, cutoff=0.3), 81.5)
 
         # Test a returns stream of 21 data points at different cutoffs.
-        returns = np.random.normal(0, 0.02, 21)
+        returns = rand.normal(0, 0.02, 21)
         for cutoff in (0, 0.0499, 0.05, 0.20, 0.999, 1):
             assert_almost_equal(
                 value_at_risk(returns, cutoff),
@@ -1206,7 +1304,7 @@ class TestStats(TestCase):
         conditional_value_at_risk = self.empyrical.conditional_value_at_risk
 
         # A single-valued array will always just have a CVaR of its only value.
-        returns = np.random.normal(0, 0.02, 1)
+        returns = rand.normal(0, 0.02, 1)
         expected_cvar = returns[0]
         assert_almost_equal(
             conditional_value_at_risk(returns, cutoff=0), expected_cvar,
@@ -1216,7 +1314,7 @@ class TestStats(TestCase):
         )
 
         # Test a returns stream of 21 data points at different cutoffs.
-        returns = np.random.normal(0, 0.02, 21)
+        returns = rand.normal(0, 0.02, 21)
 
         for cutoff in (0, 0.0499, 0.05, 0.20, 0.999, 1):
             # Find the VaR based on our cutoff, then take the average of all
@@ -1268,6 +1366,9 @@ class TestStatsArrays(TestStats):
     def empyrical(self):
         return PassArraysEmpyricalProxy(self, (np.ndarray, float))
 
+    def assert_indexes_match(self, result, expected):
+        pass
+
 
 class TestStatsIntIndex(TestStats):
     """
@@ -1286,8 +1387,11 @@ class TestStatsIntIndex(TestStats):
             lambda obj: type(obj)(obj.values, index=np.arange(len(obj))),
         )
 
+    def assert_indexes_match(self, result, expected):
+        pass
 
-class TestHelpers(TestCase):
+
+class TestHelpers(BaseTestCase):
     """
     Tests for helper methods and utils.
     """
@@ -1298,11 +1402,11 @@ class TestHelpers(TestCase):
         self.window = 12
 
         self.returns = pd.Series(
-            np.random.randn(1, 120)[0]/100.,
+            rand.randn(1, 120)[0]/100.,
             index=pd.date_range('2000-1-30', periods=120, freq='M'))
 
         self.factor_returns = pd.Series(
-            np.random.randn(1, 120)[0]/100.,
+            rand.randn(1, 120)[0]/100.,
             index=pd.date_range('2000-1-30', periods=120, freq='M'))
 
     def test_roll_pandas(self):
@@ -1311,7 +1415,7 @@ class TestHelpers(TestCase):
                            window=12,
                            function=empyrical.alpha_aligned)
 
-        self.assertTrue(res.size == self.ser_length - self.window)
+        self.assertEqual(res.size, self.ser_length - self.window + 1)
 
     def test_roll_ndarray(self):
         res = emutils.roll(self.returns.values,
@@ -1319,7 +1423,7 @@ class TestHelpers(TestCase):
                            window=12,
                            function=empyrical.alpha_aligned)
 
-        self.assertTrue(len(res == self.ser_length - self.window))
+        self.assertEqual(len(res), self.ser_length - self.window + 1)
 
     def test_down(self):
         pd_res = emutils.down(self.returns, self.factor_returns,
@@ -1354,7 +1458,7 @@ class TestHelpers(TestCase):
         self.assertTrue(res.size == 0)
 
 
-class Test2DStats(TestCase):
+class Test2DStats(BaseTestCase):
     """
     Tests for functions that are capable of outputting a DataFrame.
     """
@@ -1401,8 +1505,26 @@ class Test2DStats(TestCase):
             starting_value=starting_value,
         )
 
-        assert_almost_equal(np.asarray(cum_returns),
-                            np.asarray(expected), 4)
+        assert_almost_equal(
+            np.asarray(cum_returns),
+            np.asarray(expected),
+            4,
+        )
+
+        self.assert_indexes_match(cum_returns, returns)
+
+    @parameterized.expand([
+        (df_input, 0, df_0_expected.iloc[-1]),
+        (df_input, 100, df_100_expected.iloc[-1]),
+    ])
+    def test_cum_returns_final_df(self, returns, starting_value, expected):
+        return_types = (pd.Series, np.ndarray)
+        result = self.empyrical(return_types=return_types).cum_returns_final(
+            returns,
+            starting_value=starting_value,
+        )
+        assert_almost_equal(np.array(result), expected, 5)
+        self.assert_indexes_match(result, expected)
 
     @property
     def empyrical(self):
@@ -1429,6 +1551,9 @@ class Test2DStatsArrays(Test2DStats):
     @property
     def empyrical(self):
         return PassArraysEmpyricalProxy(self, np.ndarray)
+
+    def assert_indexes_match(self, result, expected):
+        pass
 
 
 class ReturnTypeEmpyricalProxy(object):
@@ -1472,7 +1597,13 @@ class ReturnTypeEmpyricalProxy(object):
         @wraps(func)
         def check_return_type(*args, **kwargs):
             result = func(*args, **kwargs)
-            self._test_case.assertIsInstance(result, self._return_types)
+            if isinstance(result, tuple):
+                tuple_result = result
+            else:
+                tuple_result = (result,)
+
+            for r in tuple_result:
+                self._test_case.assertIsInstance(r, self._return_types)
             return result
 
         return check_return_type
