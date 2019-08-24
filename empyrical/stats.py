@@ -21,8 +21,7 @@ import numpy as np
 from scipy import stats
 from six import iteritems
 
-from .utils import (nanmean, nanstd, nanmin, up, down, roll, rolling_window,
-                    annualize_compounding)
+from .utils import nanmean, nanstd, nanmin, up, down, roll, rolling_window
 from .periods import ANNUALIZATION_FACTORS, APPROX_BDAYS_PER_YEAR
 from .periods import DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY
 
@@ -1280,7 +1279,19 @@ def alpha_aligned(returns,
     adj_factor_returns = _adjust_returns(factor_returns, risk_free)
     alpha_series = adj_returns - (_beta * adj_factor_returns)
 
-    out = annualize_compounding(nanmean(alpha_series), ann_factor)
+    out = np.subtract(
+        np.power(
+            np.add(
+                nanmean(alpha_series, axis=0, out=out),
+                1,
+                out=out
+            ),
+            ann_factor,
+            out=out
+        ),
+        1,
+        out=out
+    )
 
     if allocated_output and isinstance(returns, pd.DataFrame):
         out = pd.Series(out)

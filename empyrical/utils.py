@@ -495,14 +495,6 @@ def default_returns_func(symbol, start=None, end=None):
     return rets[symbol]
 
 
-def annualize_compounding(stat, ann_factor=252):
-    """
-    Annualizes the given statistic based on `ann_factor`.
-    """
-    # use np.float64 to avoid overflow errors
-    return np.float64(stat + 1) ** ann_factor - 1
-
-
 def rolling_window(array, length, mutable=False):
     """
     Restride an array of shape

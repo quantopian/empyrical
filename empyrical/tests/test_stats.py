@@ -1112,7 +1112,7 @@ class TestStats(BaseTestCase):
         (one_return, one_return, 1, [(np.nan, np.nan)]),
         (mixed_returns, negative_returns,
          6, [(-0.97854954, -0.7826087), (-0.9828927, -0.76156584),
-             (-0.93166924, -0.61682243), (-7.8987541, -0.41311475)]),
+             (-0.93166924, -0.61682243), (-0.99967288, -0.41311475)]),
         (mixed_returns, mixed_returns,
          6, [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]),
         (mixed_returns, -mixed_returns,
