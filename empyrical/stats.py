@@ -1529,8 +1529,7 @@ def tail_ratio(returns):
 
 
 def capture(returns, factor_returns, period=DAILY):
-    """
-    Compute capture ratio.
+    """Compute capture ratio.
 
     Parameters
     ----------
@@ -1564,19 +1563,7 @@ def capture(returns, factor_returns, period=DAILY):
 
 
 def beta_fragility_heuristic(returns, factor_returns):
-    """
-    Estimate fragility to drops in beta.
-    A negative return value indicates potential losses
-    could follow volatility in beta.
-    The magnitude of the negative value indicates the size of
-    the potential loss.
-
-    seealso::
-
-    `A New Heuristic Measure of Fragility and
-Tail Risks: Application to Stress Testing`
-        https://www.imf.org/external/pubs/ft/wp/2012/wp12216.pdf
-        An IMF Working Paper describing the heuristic
+    """Estimate fragility to drops in beta.
 
     Parameters
     ----------
@@ -1593,6 +1580,17 @@ Tail Risks: Application to Stress Testing`
     float, np.nan
         The beta fragility of the strategy.
 
+    Note
+    -----
+    A negative return value indicates potential losses
+    could follow volatility in beta.
+    The magnitude of the negative value indicates the size of
+    the potential loss.
+    seealso::
+    `A New Heuristic Measure of Fragility and
+Tail Risks: Application to Stress Testing`
+        https://www.imf.org/external/pubs/ft/wp/2012/wp12216.pdf
+        An IMF Working Paper describing the heuristic
     """
     if len(returns) < 3 or len(factor_returns) < 3:
         return np.nan
@@ -1602,19 +1600,7 @@ Tail Risks: Application to Stress Testing`
 
 
 def beta_fragility_heuristic_aligned(returns, factor_returns):
-    """
-    Estimate fragility to drops in beta
-
-    seealso::
-
-    `A New Heuristic Measure of Fragility and
-Tail Risks: Application to Stress Testing`
-        https://www.imf.org/external/pubs/ft/wp/2012/wp12216.pdf
-        An IMF Working Paper describing the heuristic
-
-    If they are pd.Series, expects returns and factor_returns have already
-    been aligned on their labels.  If np.ndarray, these arguments should have
-    the same shape.
+    """Estimate fragility to drops in beta
 
     Parameters
     ----------
@@ -1631,6 +1617,16 @@ Tail Risks: Application to Stress Testing`
     float, np.nan
         The beta fragility of the strategy.
 
+    Note
+    -----
+    If they are pd.Series, expects returns and factor_returns have already
+    been aligned on their labels.  If np.ndarray, these arguments should have
+    the same shape.
+    seealso::
+    `A New Heuristic Measure of Fragility and
+Tail Risks: Application to Stress Testing`
+        https://www.imf.org/external/pubs/ft/wp/2012/wp12216.pdf
+        An IMF Working Paper describing the heuristic
     """
     if len(returns) < 3 or len(factor_returns) < 3:
         return np.nan
@@ -1677,15 +1673,7 @@ Tail Risks: Application to Stress Testing`
 
 
 def gpd_risk_estimates(returns, var_p=0.01):
-    """
-    Estimate VaR and ES using the Generalized Pareto Distribution (GPD)
-
-    seealso::
-
-    `An Application of Extreme Value Theory for
-Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
-        A paper describing how to use the Generalized Pareto
-        Distribution to estimate VaR and ES.
+    """Estimate VaR and ES using the Generalized Pareto Distribution (GPD)
 
     Parameters
     ----------
@@ -1706,9 +1694,17 @@ Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
             type of the distribution)
         var_estimate - an estimate for the VaR for the given percentile
         es_estimate - an estimate for the ES for the given percentile
+
+    Note
+    ----
+    seealso::
+    `An Application of Extreme Value Theory for
+Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
+        A paper describing how to use the Generalized Pareto
+        Distribution to estimate VaR and ES.
     """
     if len(returns) < 3:
-        result = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        result = np.zeros(5)
         if isinstance(returns, pd.Series):
             result = pd.Series(result)
         return result
@@ -1716,15 +1712,7 @@ Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
 
 
 def gpd_risk_estimates_aligned(returns, var_p=0.01):
-    """
-    Estimate VaR and ES using the Generalized Pareto Distribution (GPD)
-
-    seealso::
-
-    `An Application of Extreme Value Theory for
-Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
-        A paper describing how to use the Generalized Pareto
-        Distribution to estimate VaR and ES.
+    """Estimate VaR and ES using the Generalized Pareto Distribution (GPD)
 
     Parameters
     ----------
@@ -1745,8 +1733,16 @@ Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
             type of the distribution)
         var_estimate - an estimate for the VaR for the given percentile
         es_estimate - an estimate for the ES for the given percentile
+
+    Note
+    ----
+    seealso::
+    `An Application of Extreme Value Theory for
+Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
+        A paper describing how to use the Generalized Pareto
+        Distribution to estimate VaR and ES.
     """
-    result = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+    result = np.zeros(5)
     if not len(returns) < 3:
 
         DEFAULT_THRESHOLD = 0.2
