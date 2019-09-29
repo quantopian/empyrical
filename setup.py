@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from setuptools import setup
-
 import versioneer
 
 
@@ -61,10 +60,8 @@ requirements = [
     'numpy>=1.9.2',
     'pandas>=0.16.1',
     'scipy>=0.15.1',
-    "pandas-datareader>=0.2",
-    'bottleneck>=1.0.0'
+    "pandas-datareader>=0.2"
 ]
-
 
 extras_requirements = {
     "dev": [
