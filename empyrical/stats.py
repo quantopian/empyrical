@@ -1581,7 +1581,7 @@ def beta_fragility_heuristic(returns, factor_returns):
         The beta fragility of the strategy.
 
     Note
-    -----
+    ----
     A negative return value indicates potential losses
     could follow volatility in beta.
     The magnitude of the negative value indicates the size of
@@ -1618,7 +1618,7 @@ def beta_fragility_heuristic_aligned(returns, factor_returns):
         The beta fragility of the strategy.
 
     Note
-    -----
+    ----
     If they are pd.Series, expects returns and factor_returns have already
     been aligned on their labels.  If np.ndarray, these arguments should have
     the same shape.
