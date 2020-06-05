@@ -1747,7 +1747,13 @@ Measuring Risk <https://link.springer.com/article/10.1007/s10614-006-9025-7>`
 
         DEFAULT_THRESHOLD = 0.2
         MINIMUM_THRESHOLD = 0.000000001
-        returns_array = pd.Series(returns).to_numpy()
+
+        try:
+            returns_array = pd.Series(returns).to_numpy()
+        except AttributeError:
+            # while zipline requires support for pandas < 0.25
+            returns_array = pd.Series(returns).to_matrix()
+
         flipped_returns = -1 * returns_array
         losses = flipped_returns[flipped_returns > 0]
         threshold = DEFAULT_THRESHOLD
