@@ -43,6 +43,7 @@ from .stats import (
     downside_risk,
     excess_sharpe,
     max_drawdown,
+    expected_max_drawdown,
     omega_ratio,
     roll_alpha,
     roll_alpha_aligned,

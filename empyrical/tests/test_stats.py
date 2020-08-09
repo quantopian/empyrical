@@ -283,6 +283,19 @@ class TestStats(BaseTestCase):
         assert depressed_dd <= max_dd
 
     @parameterized.expand([
+        (0, 1, 1, False, -1.2533141373155001),
+        (1, 1, 1, False, -0.926318),
+        (-1, 1, 1, False, -1.769186),
+        (0, 1, 1, True, -1.477444),
+    ])
+    def test_expected_max_drawdown(self, mu, sigma, t, gbm, expected):
+        assert_almost_equal(
+            self.empyrical.expected_max_drawdown(mu, sigma, t, gbm),
+            expected,
+            DECIMAL_PLACES,
+        )
+
+    @parameterized.expand([
         (mixed_returns, empyrical.DAILY, 1.9135925373194231),
         (weekly_returns, empyrical.WEEKLY, 0.24690830513998208),
         (monthly_returns, empyrical.MONTHLY, 0.052242061386048144)
