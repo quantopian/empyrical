@@ -888,7 +888,8 @@ def downside_risk(returns,
     return out
 
 
-roll_downsize_risk = _create_unary_vectorized_roll_function(downside_risk)
+roll_downsize_risk = _create_unary_vectorized_roll_function(downside_risk) # Typo spotted in #a39a3233585dda7b11ad31f6ad896f017933d80b. Added correct spelling below. Ideally be depreciated in the future.
+roll_downside_risk = _create_unary_vectorized_roll_function(downside_risk)
 
 
 def excess_sharpe(returns, factor_returns, out=None):
