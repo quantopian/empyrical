@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from setuptools import setup
-import versioneer
+from setuptools_scm import get_version
+from setuptools.command.build_ext import build_ext as _build_ext
 
 
 DISTNAME = "empyrical"
@@ -76,8 +77,8 @@ extras_requirements = {
 if __name__ == "__main__":
     setup(
         name=DISTNAME,
-        cmdclass=versioneer.get_cmdclass(),
-        version=versioneer.get_version(),
+        cmdclass={'build_ext':build_ext},
+        version=get_version(),
         maintainer=MAINTAINER,
         maintainer_email=MAINTAINER_EMAIL,
         description=DESCRIPTION,
