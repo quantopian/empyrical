@@ -872,7 +872,7 @@ def downside_risk(returns,
             np.asanyarray(returns),
             np.asanyarray(required_return),
         ),
-        np.NINF,
+        -np.inf,
         0,
     )
 
