@@ -1116,6 +1116,23 @@ class TestStats(BaseTestCase):
                                -25.72298838]),
         (mixed_returns, 6, [7.57445259, 8.22784105, 8.22784105, -3.1374751])
     ])
+    def test_roll_cagr_matches_cagr_on_each_window(self):
+        returns = pd.Series(
+            [0.01, -0.02, 0.03, 0.015, -0.005],
+            index=pd.bdate_range("2020-01-01", periods=5),
+        )
+        window = 3
+        rolled = self.empyrical.roll_cagr(returns, window=window)
+        expected = [
+            self.empyrical.cagr(returns.iloc[i:i + window])
+            for i in range(len(returns) - window + 1)
+        ]
+        assert_almost_equal(np.asarray(rolled), np.asarray(expected), DECIMAL_PLACES)
+        self.assert_indexes_match(rolled, returns[-len(expected):])
+
+        empty = self.empyrical.roll_cagr(pd.Series(dtype=float), window=window)
+        assert len(empty) == 0
+
     def test_roll_sharpe_ratio(self, returns, window, expected):
         test = self.empyrical.roll_sharpe_ratio(returns, window=window)
         assert_almost_equal(

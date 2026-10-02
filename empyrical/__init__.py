@@ -52,6 +52,7 @@ from .stats import (
     roll_annual_volatility,
     roll_beta,
     roll_beta_aligned,
+    roll_cagr,
     roll_down_capture,
     roll_max_drawdown,
     roll_sharpe_ratio,
